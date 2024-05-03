@@ -30,6 +30,7 @@ cc_library(
         "benchmarks.h",
         "operator_fixture.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["keep_dep"],
     deps = [
         "//arolla/memory",
@@ -55,6 +56,7 @@ cc_binary(
         "//arolla/qexpr",
         "//arolla/qtype",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

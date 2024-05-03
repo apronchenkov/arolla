@@ -18,6 +18,7 @@
 // IWYU pragma: always_keep, the file defines QTypeTraits<T> specializations.
 
 #include <cstdint>
+#include <string>
 
 #include "arolla/qtype/optional_qtype.h"
 #include "arolla/qtype/qtype.h"

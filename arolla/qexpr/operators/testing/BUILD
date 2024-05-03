@@ -21,7 +21,6 @@ load(
     "float_types",
     "lift_accumulator_to_scalar",
     "lift_by",
-    "operator_family",
     "operator_libraries",
     "operator_overload_list",
     "unary_args",
@@ -34,10 +33,10 @@ licenses(["notice"])
 cc_library(
     name = "testing",
     testonly = 1,
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         ":operator_agg_sum",
         ":operator_average",
-        ":operator_fail",
         ":operator_rank_values",
         ":operator_vector2d_get_x",
         ":operator_vector2d_get_y",
@@ -52,9 +51,9 @@ cc_library(
     srcs = ["vector2d.cc"],
     hdrs = [
         "accumulators.h",
-        "testing_operators.h",
         "vector2d.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/memory",
         "//arolla/qexpr",
@@ -62,11 +61,9 @@ cc_library(
         "//arolla/util",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/strings:string_view",
-        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -160,13 +157,4 @@ operator_libraries(
             ),
         ],
     ),
-)
-
-operator_family(
-    name = "operator_fail",
-    testonly = 1,
-    hdrs = ["testing_operators.h"],
-    op_family_class = "::arolla::FailOpFamily",
-    op_family_name = "test.fail",
-    deps = [":lib"],
 )

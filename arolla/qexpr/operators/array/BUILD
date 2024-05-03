@@ -85,6 +85,7 @@ operator_lib_list = [
     ":operator_present_values",
     ":operator_randint_with_shape",
     ":operator_resize_array_shape",
+    ":operator_select",
     ":operator_slice",
     ":operator_take_over_over",
     ":operator_unique",
@@ -94,6 +95,7 @@ operator_lib_list = [
 # Registers all operators defined in the package.
 cc_library(
     name = "array",
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["keep_dep"],
     deps = operator_lib_list,
 )
@@ -101,6 +103,7 @@ cc_library(
 # Registers metadata for all the operators defined in the package.
 cc_library(
     name = "operators_metadata",
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["keep_dep"],
     deps = [lib + "_metadata" for lib in operator_lib_list],
 )
@@ -116,6 +119,7 @@ cc_library(
         "logic_ops.h",
         "random.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     visibility = ["//visibility:public"],
     deps = [
         "//arolla/array",
@@ -701,6 +705,23 @@ operator_libraries(
     ),
 )
 
+operator_libraries(
+    name = "operator_select",
+    operator_name = "array.select",
+    overloads = operator_overload_list(
+        hdrs = ["array_ops.h"],
+        arg_lists = [
+            (
+                make_array_type(t),
+                make_array_type(unit_type),
+            )
+            for t in array_value_types
+        ],
+        op_class = "::arolla::ArraySelectOp",
+        deps = [":lib"],
+    ),
+)
+
 operator_family(
     name = "operator_edge_compose_array",
     hdrs = ["edge_ops.h"],
@@ -834,6 +855,7 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

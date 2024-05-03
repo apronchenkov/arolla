@@ -16,10 +16,11 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
-# See tests in python/arolla/s11n/testing
+# See tests in py/arolla/s11n/testing
 cc_library(
     name = "encoders",
     srcs = ["dict_encoder.cc"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/qtype",
         "//arolla/qtype/dict",

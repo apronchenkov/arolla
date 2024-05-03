@@ -31,9 +31,11 @@ using ::arolla::WildcardInputLoader;
 }  // namespace
 
 namespace my_namespace_GetDenseArraySingleFieldRepeatedProtoLoaderImplNamespace {
-namespace {
 
 using Input = ::testing_namespace::Root;
+
+namespace {
+namespace {
 
 namespace multi_value_protopath {
 
@@ -170,18 +172,25 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
 };
 
 }  // namespace multi_value_protopath
+}  // namespace
 
 // Returns ChainInputLoader: Accessors, Single- and Multi-value proto.
 const InputLoader<Input>* GetCollectionInputLoader() {
   static const InputLoader<Input>* impl =
       ChainInputLoader<Input>::Build(
           // Not using make_unique to avoid binary size blowup.
-          ::arolla::InputLoaderPtr<Input>(
-              static_cast<const InputLoader<Input>*>(
-                  new multi_value_protopath::Loader())))
+          ::arolla::InputLoaderPtr<Input>(static_cast<InputLoader<Input>*>(
+              new multi_value_protopath::Loader())))
           ->release();
   return impl;
 }
+}  // namespace
+
+namespace {
+
+constexpr auto GetAllShardsInputLoader =
+    ::my_namespace_GetDenseArraySingleFieldRepeatedProtoLoaderImplNamespace::
+        GetCollectionInputLoader;
 
 }  // namespace
 }  // namespace
@@ -193,7 +202,7 @@ namespace my_namespace {
 GetDenseArraySingleFieldRepeatedProtoLoader() {
   return MakeNotOwningInputLoader(
       ::my_namespace_GetDenseArraySingleFieldRepeatedProtoLoaderImplNamespace::
-          GetCollectionInputLoader());
+          GetAllShardsInputLoader());
 }
 
 }  // namespace my_namespace

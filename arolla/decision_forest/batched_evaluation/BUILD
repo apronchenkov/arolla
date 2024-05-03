@@ -24,6 +24,7 @@ cc_library(
     name = "batched_evaluation",
     srcs = ["batched_forest_evaluator.cc"],
     hdrs = ["batched_forest_evaluator.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/array",
         "//arolla/array/qtype",
@@ -85,6 +86,7 @@ cc_binary(
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

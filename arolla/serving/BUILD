@@ -27,6 +27,7 @@ cc_library(
         "expr_compiler.h",
         "inplace_expr_compiler.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         ":expr_compiler_optimizer",
         ":serving_lite",
@@ -52,6 +53,7 @@ cc_library(
 cc_library(
     name = "expr_compiler_optimizer",
     srcs = ["expr_compiler_optimizer_initializer.cc"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     visibility = ["//visibility:private"],
     deps = [
         ":serving_lite",
@@ -75,6 +77,7 @@ cc_library(
         "expr_compiler.h",
         "inplace_expr_compiler.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["avoid_dep"],
     deps = [
         ":serving_inplace",
@@ -98,8 +101,8 @@ cc_library(
 )
 
 # The lightest serving target to be used for binaries that only need
-# inplace computation of a codegened model (CompileInplaceExprOnStructInput).
-# Operator dependencies will be needed to support CompileDynamicExprOnStructInput.
+# inplace computation of a codegened model (CompileInplaceExprOnStruct).
+# NOTE: operator dependencies will be needed to support dynamic evalution on structs.
 cc_library(
     name = "serving_inplace",
     srcs = [
@@ -109,10 +112,10 @@ cc_library(
         "embedded_model.h",
         "inplace_expr_compiler.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["avoid_dep"],
     deps = [
         "//arolla/expr",
-        "//arolla/expr/visitors",
         "//arolla/io",
         "//arolla/memory",
         "//arolla/naming",
@@ -162,7 +165,6 @@ cc_test(
         ":serving_lite",
         "//arolla/expr",
         "//arolla/expr/operators/all",
-        "//arolla/io",
         "//arolla/memory",
         "//arolla/qexpr",
         "//arolla/qexpr/operators/all",
@@ -200,6 +202,7 @@ cc_test(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

@@ -38,6 +38,7 @@ cc_library(
         "ops_util.h",
         "pointwise_op.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/dense_array",
         "//arolla/dense_array/ops",
@@ -182,6 +183,7 @@ cc_binary(
         "@com_google_absl//absl/random:distributions",
         "@com_google_absl//absl/types:span",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

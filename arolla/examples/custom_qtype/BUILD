@@ -14,7 +14,7 @@
 
 # Example of custom QType definition.
 #
-# See python/arolla/examples/custom_qtype/ for the Python part.
+# See py/arolla/examples/custom_qtype/ for the Python part.
 
 package(default_visibility = ["//arolla:internal"])
 
@@ -24,6 +24,7 @@ cc_library(
     name = "complex",
     srcs = ["complex.cc"],
     hdrs = ["complex.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/qtype",
         "//arolla/util",
@@ -45,6 +46,7 @@ cc_test(
 cc_library(
     name = "complex_operators",
     srcs = ["complex_operators.cc"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         ":complex",
         "//arolla/optools",

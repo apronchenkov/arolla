@@ -78,6 +78,7 @@ operator_lib_list = [
     ":operator_present_values",
     ":operator_randint_with_shape",
     ":operator_resize_array_shape",
+    ":operator_select",
     ":operator_slice",
     ":operator_take_over_over",
     ":operator_unique",
@@ -87,6 +88,7 @@ operator_lib_list = [
 # Registers all operators defined in the package.
 cc_library(
     name = "dense_array",
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["keep_dep"],
     deps = operator_lib_list + [
         ":operator_make_dense_array",
@@ -99,6 +101,7 @@ cc_library(
 # Registers metadata for all the operators defined in the package.
 cc_library(
     name = "operators_metadata",
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["keep_dep"],
     deps = [lib + "_metadata" for lib in operator_lib_list] + [
         ":operator_at_metadata",
@@ -123,6 +126,7 @@ cc_library(
         "logic_ops.h",
         "random.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     visibility = ["//visibility:public"],
     deps = [
         "//arolla/dense_array",
@@ -665,6 +669,23 @@ operator_libraries(
 )
 
 operator_libraries(
+    name = "operator_select",
+    operator_name = "array.select",
+    overloads = operator_overload_list(
+        hdrs = ["array_ops.h"],
+        arg_lists = [
+            (
+                make_dense_array_type(t),
+                make_dense_array_type(unit_type),
+            )
+            for t in dense_array_value_types
+        ],
+        op_class = "::arolla::DenseArraySelectOp",
+        deps = [":lib"],
+    ),
+)
+
+operator_libraries(
     name = "test_operator_add",
     testonly = 1,
     operator_name = "test.add",
@@ -816,6 +837,7 @@ cc_binary(
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/random",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

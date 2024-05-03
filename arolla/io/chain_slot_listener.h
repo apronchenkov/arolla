@@ -41,9 +41,9 @@ class ChainSlotListener final : public SlotListener<Output> {
 
  public:
   // Creates ChainSlotListener from given listeners.
-  template <class... ListenerUniquePtrs>
+  template <class... ListenerTs>
   static absl::StatusOr<std::unique_ptr<SlotListener<Output>>> Build(
-      ListenerUniquePtrs... listeners) {
+      std::unique_ptr<ListenerTs>... listeners) {
     std::vector<std::unique_ptr<SlotListener<Output>>> listeners_vec;
     (listeners_vec.push_back(std::move(listeners)), ...);
     return Build(std::move(listeners_vec));
@@ -54,9 +54,12 @@ class ChainSlotListener final : public SlotListener<Output> {
                                                std::move(listeners));
   }
 
-  absl::Nullable<const QType*> GetQTypeOf(absl::string_view name) const final {
+  absl::Nullable<const QType*> GetQTypeOf(
+      absl::string_view name,
+      absl::Nullable<const QType*> desired_qtype) const final {
     for (const auto& listener : listeners_) {
-      if (auto qtype = listener->GetQTypeOf(name); qtype != nullptr) {
+      if (auto qtype = listener->GetQTypeOf(name, desired_qtype);
+          qtype != nullptr) {
         return qtype;
       }
     }

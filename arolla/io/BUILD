@@ -23,6 +23,7 @@ cc_library(
         "input_loader.cc",
         "slot_listener.cc",
         "string_slot_listener.cc",
+        "struct_io.cc",
         "typed_refs_input_loader.cc",
         "wildcard_input_loader.cc",
     ],
@@ -37,10 +38,12 @@ cc_library(
         "slot_listener.h",
         "span_input_loader.h",
         "string_slot_listener.h",
+        "struct_io.h",
         "tuple_input_loader.h",
         "typed_refs_input_loader.h",
         "wildcard_input_loader.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/dense_array",
         "//arolla/dense_array/qtype",
@@ -48,10 +51,12 @@ cc_library(
         "//arolla/qtype",
         "//arolla/util",
         "//arolla/util:status_backport",
+        "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/log:die_if_null",
         "@com_google_absl//absl/memory",
@@ -77,6 +82,7 @@ cc_test(
         "//arolla/util/testing",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -286,5 +292,38 @@ cc_test(
         "//arolla/util/testing",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "struct_io_test",
+    srcs = ["struct_io_test.cc"],
+    deps = [
+        ":io",
+        "//arolla/dense_array",
+        "//arolla/dense_array/qtype",
+        "//arolla/memory",
+        "//arolla/qtype",
+        "//arolla/util",
+        "//arolla/util/testing",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "struct_io_benchmarks",
+    testonly = 1,
+    srcs = ["struct_io_benchmarks.cc"],
+    deps = [
+        ":io",
+        "//arolla/memory",
+        "//arolla/qtype",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )

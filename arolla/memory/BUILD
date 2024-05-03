@@ -34,6 +34,7 @@ cc_library(
         "optional_value.h",
         "raw_buffer_factory.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/util",
         "//arolla/util:status_backport",
@@ -59,6 +60,7 @@ cc_test(
     deps = [
         ":memory",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

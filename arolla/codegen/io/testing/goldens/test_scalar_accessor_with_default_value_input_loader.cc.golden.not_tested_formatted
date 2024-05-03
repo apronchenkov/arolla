@@ -28,10 +28,11 @@ using ::arolla::WildcardInputLoader;
 }  // namespace
 
 namespace my_namespace_GetSingleValueWithDefaultProtoLoaderImplNamespace {
-namespace {
 
 using Input = ::testing_namespace::Root;
 
+namespace {
+namespace {
 namespace single_value_protopath {
 
 using ::arolla::codegen::io::kSkippedOffset;
@@ -210,7 +211,7 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable0(offset);
           output->present = true;
-          output->value = tmp_0.a();
+          output->value = ::arolla::proto::ToArollaCompatibleType(tmp_0.a());
         }
       }();
       // protopath=`inner/inner2`
@@ -268,7 +269,7 @@ class SlotSetter {
             }
             auto* output = outputs.GetMutable3(offset);
             output->present = true;
-            output->value = tmp_2.x();
+            output->value = ::arolla::proto::ToArollaCompatibleType(tmp_2.x());
           }
         }();
       }();
@@ -360,17 +361,25 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
 
 }  // namespace single_value_protopath
 
+}  // namespace
+
 // Returns ChainInputLoader: Accessors, Single- and Multi-value proto.
 const InputLoader<Input>* GetCollectionInputLoader() {
   static const InputLoader<Input>* impl =
       ChainInputLoader<Input>::Build(
           // Not using make_unique to avoid binary size blowup.
-          ::arolla::InputLoaderPtr<Input>(
-              static_cast<const InputLoader<Input>*>(
-                  new single_value_protopath::Loader())))
+          ::arolla::InputLoaderPtr<Input>(static_cast<InputLoader<Input>*>(
+              new single_value_protopath::Loader())))
           ->release();
   return impl;
 }
+}  // namespace
+
+namespace {
+
+constexpr auto GetAllShardsInputLoader =
+    ::my_namespace_GetSingleValueWithDefaultProtoLoaderImplNamespace::
+        GetCollectionInputLoader;
 
 }  // namespace
 }  // namespace my_namespace_GetSingleValueWithDefaultProtoLoaderImplNamespace
@@ -381,7 +390,7 @@ namespace my_namespace {
 GetSingleValueWithDefaultProtoLoader() {
   return MakeNotOwningInputLoader(
       ::my_namespace_GetSingleValueWithDefaultProtoLoaderImplNamespace::
-          GetCollectionInputLoader());
+          GetAllShardsInputLoader());
 }
 
 }  // namespace my_namespace

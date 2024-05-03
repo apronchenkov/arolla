@@ -1,3 +1,17 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utility to register operator libraries with DenseArray types."""
 
 load(
@@ -14,6 +28,9 @@ def make_dense_array_type(t):
     return "::arolla::AsDenseArray<{}>".format(t)
 
 def _make_dense_array_op(t, args):
+    # Note: we use NoBitmapOffset=true for performance reasons.
+    # To make it work correctly we have to call DenseArray::ForceNoBitmapBitOffset
+    # in `array.slice` (on DenseArray) and in `array._as_dense_array` (on Array) operators.
     return "::arolla::DenseArrayLifter<{}, {}, /*NoBitmapOffset=*/true>".format(
         t,
         meta_type_list(args),

@@ -30,10 +30,11 @@ using ::arolla::WildcardInputLoader;
 }  // namespace
 
 namespace my_namespace_GetStructLoaderImplNamespace {
-namespace {
 
 using Input = ::testing_namespace::RootNativeStruct;
 
+namespace {
+namespace {
 namespace single_value_protopath {
 
 using ::arolla::codegen::io::kSkippedOffset;
@@ -167,7 +168,7 @@ class SlotSetter {
           offset != kSkippedOffset) {
         auto* output = outputs.GetMutable0(offset);
         output->present = true;
-        output->value = tmp_0.a;
+        output->value = ::arolla::proto::ToArollaCompatibleType(tmp_0.a);
       }
     }();
     // protopath=`&::inner_proto`
@@ -183,7 +184,7 @@ class SlotSetter {
             offset != kSkippedOffset) {
           auto* output = outputs.GetMutable1(offset);
           output->present = true;
-          output->value = (&(tmp_2));
+          output->value = ::arolla::proto::ToArollaCompatibleType((&(tmp_2)));
         }
       }();
       // protopath=`&::inner_proto/a` name=`/inner_proto/a`
@@ -197,7 +198,7 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable2(offset);
           output->present = true;
-          output->value = tmp_2.a();
+          output->value = ::arolla::proto::ToArollaCompatibleType(tmp_2.a());
         }
       }();
     }();
@@ -208,7 +209,7 @@ class SlotSetter {
           offset != kSkippedOffset) {
         auto* output = outputs.GetMutable3(offset);
         output->present = true;
-        output->value = tmp_3.x;
+        output->value = ::arolla::proto::ToArollaCompatibleType(tmp_3.x);
       }
     }();
     // protopath=`&::raw_bytes` name=`raw_bytes`
@@ -218,7 +219,8 @@ class SlotSetter {
           offset != kSkippedOffset) {
         auto* output = outputs.GetMutable4(offset);
         output->present = true;
-        output->value = tmp_3.raw_bytes;
+        output->value =
+            ::arolla::proto::ToArollaCompatibleType(tmp_3.raw_bytes);
       }
     }();
     // protopath=`&::str` name=`str`
@@ -228,7 +230,7 @@ class SlotSetter {
           offset != kSkippedOffset) {
         auto* output = outputs.GetMutable5(offset);
         output->present = true;
-        output->value = tmp_3.str;
+        output->value = ::arolla::proto::ToArollaCompatibleType(tmp_3.str);
       }
     }();
   }
@@ -290,17 +292,24 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
 
 }  // namespace single_value_protopath
 
+}  // namespace
+
 // Returns ChainInputLoader: Accessors, Single- and Multi-value proto.
 const InputLoader<Input>* GetCollectionInputLoader() {
   static const InputLoader<Input>* impl =
       ChainInputLoader<Input>::Build(
           // Not using make_unique to avoid binary size blowup.
-          ::arolla::InputLoaderPtr<Input>(
-              static_cast<const InputLoader<Input>*>(
-                  new single_value_protopath::Loader())))
+          ::arolla::InputLoaderPtr<Input>(static_cast<InputLoader<Input>*>(
+              new single_value_protopath::Loader())))
           ->release();
   return impl;
 }
+}  // namespace
+
+namespace {
+
+constexpr auto GetAllShardsInputLoader =
+    ::my_namespace_GetStructLoaderImplNamespace::GetCollectionInputLoader;
 
 }  // namespace
 }  // namespace my_namespace_GetStructLoaderImplNamespace
@@ -310,7 +319,7 @@ namespace my_namespace {
 ::arolla::InputLoaderPtr<::testing_namespace::RootNativeStruct>
 GetStructLoader() {
   return MakeNotOwningInputLoader(
-      ::my_namespace_GetStructLoaderImplNamespace::GetCollectionInputLoader());
+      ::my_namespace_GetStructLoaderImplNamespace::GetAllShardsInputLoader());
 }
 
 }  // namespace my_namespace

@@ -30,6 +30,7 @@ cc_library(
         "dense_array.h",
         "edge.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/memory",
         "//arolla/util",
@@ -92,6 +93,7 @@ cc_binary(
     deps = [
         ":dense_array",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -108,6 +110,7 @@ cc_binary(
         ":dense_array",
         "//arolla/util",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -125,6 +128,7 @@ cc_binary(
         "//arolla/memory",
         "@com_google_absl//absl/types:span",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

@@ -33,6 +33,7 @@
 #include "arolla/memory/buffer.h"
 #include "arolla/memory/optional_value.h"
 #include "arolla/memory/raw_buffer_factory.h"
+#include "arolla/util/api.h"
 #include "arolla/util/fingerprint.h"
 #include "arolla/util/iterator.h"
 #include "arolla/util/repr.h"
@@ -49,7 +50,7 @@ namespace arolla {
 // in IdFilter. Otherwise the value for the index is missing_id_value (that can
 // be either nullopt or some default value).
 template <class T>
-class Array {
+class AROLLA_API Array {
  public:
   // Constant array
   explicit Array(int64_t size = 0, OptionalValue<T> value = std::nullopt)
@@ -114,8 +115,8 @@ class Array {
   const DenseArray<T>& dense_data() const { return dense_data_; }
   const OptionalValue<T>& missing_id_value() const { return missing_id_value_; }
 
-  const OptionalValue<view_type_t<T>> operator[](
-      int64_t index) const {  // NOLINT
+  const OptionalValue<view_type_t<T>> operator[](  // NOLINT
+      int64_t index) const {
     DCHECK_GE(index, 0);
     DCHECK_LT(index, size_);
     OptionalValue<int64_t> offset = id_filter_.IdToOffset(index);
@@ -413,7 +414,7 @@ Array<T> CreateArray(int64_t size, absl::Span<const int64_t> ids,
 template <class T>
 using AsArray = Array<strip_optional_t<std::decay_t<T>>>;
 
-struct ArrayShape {
+struct AROLLA_API ArrayShape {
   int64_t size;
 
   bool operator==(const ArrayShape& other) const { return size == other.size; }

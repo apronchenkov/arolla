@@ -21,6 +21,8 @@
 # All concrete types and serialization formats need to be provided externally.
 #
 
+load("@rules_python//python:proto.bzl", "py_proto_library")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
@@ -39,6 +41,11 @@ cc_proto_library(
     ],
 )
 
+py_proto_library(
+    name = "base_py_proto",
+    deps = [":base_proto"],
+)
+
 cc_library(
     name = "serialization_base",
     srcs = [
@@ -49,6 +56,7 @@ cc_library(
         "decode.h",
         "encode.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         ":base_cc_proto",
         "//arolla/expr",

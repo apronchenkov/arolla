@@ -26,7 +26,9 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "arolla/expr/expr_node.h"
-#include "arolla/io/accessors_input_loader.h"
+#include "arolla/io/input_loader.h"
+#include "arolla/io/slot_listener.h"
+#include "arolla/io/struct_io.h"
 #include "arolla/memory/frame.h"
 #include "arolla/qexpr/eval_context.h"
 #include "arolla/qexpr/evaluation_engine.h"
@@ -41,6 +43,8 @@ namespace inplace_expr_compiler_impl {
 
 using TypedSlotMap = absl::flat_hash_map<std::string, TypedSlot>;
 
+TypedSlotMap CollectInternalSlots(TypedSlot root_slot);
+
 struct IoSlots {
   TypedSlotMap input_slots;
   TypedSlot output_slot;
@@ -53,24 +57,6 @@ absl::StatusOr<IoSlots> CollectIoSlots(QTypePtr qtype,
                                        const CompiledExpr& compiled_expr,
                                        absl::string_view final_output_name);
 
-// Prepare expression for evaluation on qtype.
-// Resulting expression has one input `input_name` annotated with `qtype`.
-absl::StatusOr<expr::ExprNodePtr> TransformExprForInplaceEvaluation(
-    const expr::ExprNodePtr& expr, QTypePtr qtype,
-    absl::string_view input_name);
-
-// Creates new CompiledExpr expression for evaluation on qtype.
-// Resulting expression:
-// 1. has one input `input_name` with provided `qtype`.
-// 2. side outputs are unchanged.
-// 3. DO NOT OWN expr and must be bound during expr lifetime.
-absl::StatusOr<std::unique_ptr<CompiledExpr>>
-TransformCompiledExprForEvaluationOnStruct(const CompiledExpr& expr,
-                                           QTypePtr qtype,
-                                           absl::string_view input_name);
-
-constexpr absl::string_view kInputName = "____input";
-
 }  // namespace inplace_expr_compiler_impl
 
 // For working with inplace evaluation one need to define type STRUCT_TYPE
@@ -78,6 +64,7 @@ constexpr absl::string_view kInputName = "____input";
 // 1. satisfy StandardLayoutType (e.g., POD).
 //    https://en.cppreference.com/w/cpp/named_req/StandardLayoutType
 // 2. registered as `QType` with subfields using `ArollaStructFields`.
+//    See util/struct_field.h.
 //
 // Example of type that can be used:
 //
@@ -138,9 +125,8 @@ using InplaceModelFunction = std::function<absl::Status(T&)>;
 //    Field names are created using `::arolla::naming` library based on
 //    ArollaStructFields.
 //    E.g., TablePath().Child("side_outputs").Column("x_plus_y")
-//
 template <typename T>
-absl::StatusOr<InplaceModelFunction<T>> CompileInplaceExprOnStructInput(
+absl::StatusOr<InplaceModelFunction<T>> CompileInplaceExprOnStruct(
     const InplaceCompiledExpr& compiled_expr,
     absl::string_view final_output_name) {
   static_assert(
@@ -162,67 +148,68 @@ absl::StatusOr<InplaceModelFunction<T>> CompileInplaceExprOnStructInput(
   };
 }
 
-// Compile expression for evaluation on the struct input type.
+// With arolla annotated struct it is also possible to evaluate dynamic
+// expression or expression with outputs not storable in the struct
+// (e.g., Tuple/TypedValue).
 //
-// SetInputLoader is called by this function.
-// Entire struct is going to be copied to the evaluation context
-// and data is going to be read from the struct directly.
+// For that regular `ExprCompiler` together with `CreateStructInputLoader`
+// and `CreateStructSlotListener` can be used.
+//
+// Example:
+// ASSIGN_OR_RETURN(  // Should be done once, not on every evaluation.
+//     std::function<absl::StatusOr<double>(const TestStruct&)> eval_fn,
+//     (arolla::ExprCompiler<TestStruct, double>())
+//       .SetInputLoader(arolla::CreateStructInputLoader<TestStruct>())
+//       .Compile(expr)));
+// TestStruct input{.x = 5.f, .y = 7.};
+// ASSIGN_OR_RETURN(double result, eval_fn(input));
+//
+// Fields required for the computation will be copied to the evaluation context
+// by offset within the struct (using arolla::StructInputLoader).
+// Exported fields will be copied from the evaluation context
+// into the output struct by offset (using arolla::StructSlotListener).
+//
 // Field names in the struct are created using
 // `::arolla::naming` library based on ArollaStructFields.
 // E.g., TablePath().Child("side_outputs").Column("x_plus_y")
 //
-// Following requirements must be satisfied:
-// 0. `Compiler::input_type` must be STRUCT_TYPE
-// 1. In case leaf nodes are annotated with `annotation.qtype`.
-//    `QType`s must match field types exactly.
+// If leaf nodes are annotated with `annotation.qtype`.
+// `QType`s must match field types exactly.
 //
-// Example:
-// ASSIGN_OR_RETURN(
-//     std::function<absl::StatusOr<double>(const TestStruct&)> eval_fn,
-//     CompileDynamicExprOnStructInput(ExprCompiler<TestStruct, double>(),
-//     expr));
-// TestStruct input{.x = 5.f, .y = 7.};
-// ASSIGN_OR_RETURN(double result, eval_fn(input));
+// Example with storing side outputs (to the same struct in this case):
+// ASSIGN_OR_RETURN(  // Should be done once, not on every evaluation.
+//     std::function<absl::StatusOr<double>(const TestStruct&, TestStruct*)>
+//         eval_fn,
+//     (arolla::ExprCompiler<TestStruct, double, TestStruct>())
+//       .SetInputLoader(arolla::CreateStructInputLoader<TestStruct>())
+//       .SetSlotListener(arolla::CreateStructSlotListener<TestStruct>())
+//       .Compile(expr)));
+// TestStruct data{.x = 5.f, .y = 7.};
+// ASSIGN_OR_RETURN(double result, eval_fn(data, &data));
+// double x_times_y = data.side_outputs.x_times_y;
 //
-template <typename Compiler>
-absl::StatusOr<typename Compiler::Function> CompileDynamicExprOnStructInput(
-    Compiler&& compiler,
-    absl::StatusOr<const expr::ExprNodePtr> status_or_expr) {
-  using Input = typename Compiler::input_type;
-  using inplace_expr_compiler_impl::kInputName;
-  static_assert(
-      std::is_standard_layout<Input>::value,
-      "Data must be standard layout to be used with CompileOnStruct.");
-  ASSIGN_OR_RETURN(const expr::ExprNodePtr& expr, status_or_expr);
-  return std::forward<Compiler>(compiler)
-      .SetInputLoader(CreateAccessorsInputLoader<Input>(
-          kInputName, [](const auto& value) { return value; }))
-      .Compile(inplace_expr_compiler_impl::TransformExprForInplaceEvaluation(
-          expr, GetQType<Input>(), kInputName));
+// For CompiledExpr prefer CompileInplaceExprOnStruct to achieve
+// the best performance.
+// But the same method is useful iff storing output or side outputs inside of
+// the struct is not possible. E.g., for Tuple/TypedValue output.
+
+// Creates InputLoader for given struct with defined QType with named fields.
+template <typename Struct>
+absl::StatusOr<InputLoaderPtr<Struct>> CreateStructInputLoader() {
+  return StructInputLoader<Struct>::Create(
+      inplace_expr_compiler_impl::CollectInternalSlots(
+          TypedSlot::UnsafeFromOffset(GetQType<Struct>(), 0)));
 }
 
-// Compile expression for evaluation on the struct input type.
-// Overload for CompiledExpr.
-// For the best performance prefer CompileInplaceExprOnStructInput.
-// This function is useful iff storing output or side outputs inside of
-// the struct is not possible. E.g., for Tuple/TypedValue output.
-template <typename Compiler>
-absl::StatusOr<typename Compiler::Function> CompileDynamicExprOnStructInput(
-    Compiler&& compiler, const CompiledExpr& compiled_expr) {
-  using Input = typename Compiler::input_type;
-  using inplace_expr_compiler_impl::kInputName;
-  static_assert(
-      std::is_standard_layout<Input>::value,
-      "Data must be standard layout to be used with CompileOnStruct.");
-  ASSIGN_OR_RETURN(
-      auto transformed_expr,
-      inplace_expr_compiler_impl::TransformCompiledExprForEvaluationOnStruct(
-          compiled_expr, GetQType<Input>(), kInputName));
-  return std::forward<Compiler>(compiler)
-      .SetInputLoader(CreateAccessorsInputLoader<Input>(
-          kInputName, [](const auto& value) { return value; }))
-      .Compile(*transformed_expr);
+// Creates SlotListener for given struct with defined QType with named fields.
+template <typename Struct>
+absl::StatusOr<std::unique_ptr<SlotListener<Struct>>>
+CreateStructSlotListener() {
+  return StructSlotListener<Struct>::Create(
+      inplace_expr_compiler_impl::CollectInternalSlots(
+          TypedSlot::UnsafeFromOffset(GetQType<Struct>(), 0)));
 }
+
 }  // namespace arolla
 
 #endif  // AROLLA_SERVING_INPLACE_EXPR_COMPILER_H_

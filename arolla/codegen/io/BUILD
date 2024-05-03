@@ -14,8 +14,8 @@
 
 # bzl based functions for code generation.
 
-load("@rules_python//python:py_library.bzl", "py_library")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -95,6 +95,7 @@ py_library(
         "input_loader.h.jinja2",
         "input_loader_accessors.cc.jinja2",
         "input_loader_multi_value_proto.cc.jinja2",
+        "input_loader_sharding.cc.jinja2",
         "input_loader_single_value_proto.cc.jinja2",
         "input_loader_utils.jinja2",
         "slot_listener.cc.jinja2",
@@ -165,6 +166,7 @@ cc_library(
     name = "multi_loader",
     srcs = ["multi_loader.cc"],
     hdrs = ["multi_loader.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/dense_array",
         "//arolla/memory",

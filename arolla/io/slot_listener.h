@@ -46,9 +46,15 @@ class SlotListenerBase {
   virtual ~SlotListenerBase() = default;
 
   // Returns the type of the given output, or nullptr if the output is not
-  // supported.
+  // supported. Optional argument `desired_qtype` allows SlotListener to support
+  // multiple QTypes for the same name (e.g. by applying casting when copying
+  // data) depending on what is requested.
   virtual absl::Nullable<const QType*> GetQTypeOf(
-      absl::string_view name) const = 0;
+      absl::string_view name,
+      absl::Nullable<const QType*> desired_qtype) const = 0;
+  absl::Nullable<const QType*> GetQTypeOf(absl::string_view name) const {
+    return GetQTypeOf(name, nullptr);
+  }
 
   // Returns a list of names or name patterns of the supported outputs. Used
   // only for error messages.
@@ -91,7 +97,7 @@ class SlotListener : public SlotListenerBase {
       const absl::flat_hash_map<std::string, TypedSlot>& slots) const {
     absl::flat_hash_map<std::string, TypedSlot> partial_slots;
     for (const auto& [name, slot] : slots) {
-      if (GetQTypeOf(name) != nullptr) {
+      if (GetQTypeOf(name, slot.GetType()) != nullptr) {
         partial_slots.emplace(name, slot);
       }
     }
@@ -123,7 +129,8 @@ class StaticSlotListener : public SlotListener<T> {
   virtual const absl::flat_hash_map<std::string, QTypePtr>& GetTypes()
       const = 0;
 
-  absl::Nullable<const QType*> GetQTypeOf(absl::string_view name) const final {
+  absl::Nullable<const QType*> GetQTypeOf(
+      absl::string_view name, absl::Nullable<const QType*>) const final {
     auto it = GetTypes().find(name);
     return it != GetTypes().end() ? it->second : nullptr;
   }
@@ -149,8 +156,10 @@ class NotOwningSlotListener final : public SlotListener<T> {
   explicit NotOwningSlotListener(const SlotListener<T>* slot_listener)
       : slot_listener_(ABSL_DIE_IF_NULL(slot_listener)) {}
 
-  absl::Nullable<const QType*> GetQTypeOf(absl::string_view name) const final {
-    return slot_listener_->GetQTypeOf(name);
+  absl::Nullable<const QType*> GetQTypeOf(
+      absl::string_view name,
+      absl::Nullable<const QType*> desired_qtype) const final {
+    return slot_listener_->GetQTypeOf(name, desired_qtype);
   }
 
   std::vector<std::string> SuggestAvailableNames() const final {
@@ -187,8 +196,10 @@ class SharedOwningSlotListener final : public SlotListener<T> {
       std::shared_ptr<const SlotListener<T>> slot_listener)
       : slot_listener_(std::move(ABSL_DIE_IF_NULL(slot_listener))) {}
 
-  absl::Nullable<const QType*> GetQTypeOf(absl::string_view name) const final {
-    return slot_listener_->GetQTypeOf(name);
+  absl::Nullable<const QType*> GetQTypeOf(
+      absl::string_view name,
+      absl::Nullable<const QType*> desired_qtype) const final {
+    return slot_listener_->GetQTypeOf(name, desired_qtype);
   }
 
   std::vector<std::string> SuggestAvailableNames() const final {

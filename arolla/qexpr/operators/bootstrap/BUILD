@@ -62,6 +62,7 @@ operator_lib_list = [
     ":operator_qtype_get_value_qtype",
     ":operator_qtype_is_dict_qtype",
     ":operator_qtype_is_edge_qtype",
+    ":operator_qtype_is_namedtuple_qtype",
     ":operator_qtype_is_sequence_qtype",
     ":operator_qtype_is_shape_qtype",
     ":operator_qtype_is_slice_qtype",
@@ -83,6 +84,7 @@ optional_unit_type = make_optional_type(unit_type)
 # Registers all operators defined in the package.
 cc_library(
     name = "bootstrap",
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["keep_dep"],
     deps = operator_lib_list + [
         "//arolla/qexpr/eval_extensions",
@@ -92,6 +94,7 @@ cc_library(
 # Registers metadata for all the operators defined in the package.
 cc_library(
     name = "operators_metadata",
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     tags = ["keep_dep"],
     deps = [lib + "_metadata" for lib in operator_lib_list],
 )
@@ -108,6 +111,7 @@ cc_library(
         "qtype_operator.h",
         "sequence_operators.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     visibility = ["//visibility:public"],
     deps = [
         "//arolla/memory",
@@ -458,6 +462,19 @@ operator_libraries(
             (qtype_type,),
         ],
         op_class = "::arolla::IsTupleQTypeOp",
+        deps = [":lib"],
+    ),
+)
+
+operator_libraries(
+    name = "operator_qtype_is_namedtuple_qtype",
+    operator_name = "qtype.is_namedtuple_qtype",
+    overloads = operator_overload_list(
+        hdrs = ["qtype_operator.h"],
+        arg_lists = [
+            (qtype_type,),
+        ],
+        op_class = "::arolla::IsNamedTupleQTypeOp",
         deps = [":lib"],
     ),
 )

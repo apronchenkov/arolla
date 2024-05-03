@@ -35,10 +35,11 @@ using ::arolla::WildcardInputLoader;
 }  // namespace
 
 namespace my_namespace_GetDescriptorBasedLoaderImplNamespace {
-namespace {
 
 using Input = ::testing_namespace::Root;
 
+namespace {
+namespace {
 namespace single_value_protopath {
 
 using ::arolla::codegen::io::kSkippedOffset;
@@ -1543,7 +1544,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable0(offset);
           output->present = true;
-          output->value = tmp_6.broken_case();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_6.broken_case());
         }
       }();
       // protopath=`inner`
@@ -1579,7 +1581,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable1(offset);
               output->present = true;
-              output->value = tmp_1.a();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_1.a());
             }
           }();
           // protopath=`inner/count(as[:])` name=`/inner/as/@size`
@@ -1600,7 +1603,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable3(offset);
               output->present = true;
-              output->value = tmp_1.bytes_cord();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_1.bytes_cord());
             }
           }();
           // protopath=`inner/bytes_string_view` name=`/inner/bytes_string_view`
@@ -1613,7 +1617,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable4(offset);
               output->present = true;
-              output->value = tmp_1.bytes_string_view();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_1.bytes_string_view());
             }
           }();
           // protopath=`inner/inner2`
@@ -1643,7 +1648,8 @@ class SlotSetter {
                 }
                 auto* output = outputs.GetMutable5(offset);
                 output->present = true;
-                output->value = tmp_0.z();
+                output->value = ::arolla::proto::ToArollaCompatibleType(
+                    tmp_0.z());
               }
             }();
             // protopath=`inner/inner2/count(zs[:])` name=`/inner/inner2/zs/@size`
@@ -1664,7 +1670,8 @@ class SlotSetter {
                 }
                 auto* output = outputs.GetMutable7(offset);
                 output->present = true;
-                output->value = tmp_0.z();
+                output->value = ::arolla::proto::ToArollaCompatibleType(
+                    tmp_0.z());
               }
             }();
             // protopath=`inner/inner2/count(zs[:])` name=`inner__inner2__zs__@size`
@@ -1694,7 +1701,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable10(offset);
               output->present = true;
-              output->value = tmp_1.raw_bytes();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_1.raw_bytes());
             }
           }();
           // protopath=`inner/str` name=`/inner/str`
@@ -1707,7 +1715,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable11(offset);
               output->present = true;
-              output->value = tmp_1.str();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_1.str());
             }
           }();
         }();
@@ -1727,7 +1736,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable12(offset);
               output->present = true;
-              output->value = tmp_2.str_cord();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_2.str_cord());
             }
           }();
           // protopath=`inner/str_string_view` name=`/inner/str_string_view`
@@ -1740,7 +1750,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable13(offset);
               output->present = true;
-              output->value = tmp_2.str_string_view();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_2.str_string_view());
             }
           }();
           // protopath=`inner/a` name=`inner__a`
@@ -1753,7 +1764,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable14(offset);
               output->present = true;
-              output->value = tmp_2.a();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_2.a());
             }
           }();
           // protopath=`inner/count(as[:])` name=`inner__as__@size`
@@ -1774,7 +1786,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable16(offset);
               output->present = true;
-              output->value = tmp_2.bytes_cord();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_2.bytes_cord());
             }
           }();
           // protopath=`inner/bytes_string_view` name=`inner__bytes_string_view`
@@ -1787,7 +1800,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable17(offset);
               output->present = true;
-              output->value = tmp_2.bytes_string_view();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_2.bytes_string_view());
             }
           }();
           // protopath=`inner/count(inners2[:])` name=`inner__inners2__@size`
@@ -1808,7 +1822,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable19(offset);
               output->present = true;
-              output->value = tmp_2.raw_bytes();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_2.raw_bytes());
             }
           }();
         }();
@@ -1828,7 +1843,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable20(offset);
               output->present = true;
-              output->value = tmp_3.str();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_3.str());
             }
           }();
           // protopath=`inner/str_cord` name=`inner__str_cord`
@@ -1841,7 +1857,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable21(offset);
               output->present = true;
-              output->value = tmp_3.str_cord();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_3.str_cord());
             }
           }();
           // protopath=`inner/str_string_view` name=`inner__str_string_view`
@@ -1854,7 +1871,8 @@ class SlotSetter {
               }
               auto* output = outputs.GetMutable22(offset);
               output->present = true;
-              output->value = tmp_3.str_string_view();
+              output->value = ::arolla::proto::ToArollaCompatibleType(
+                  tmp_3.str_string_view());
             }
           }();
         }();
@@ -1877,7 +1895,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable24(offset);
           output->present = true;
-          output->value = tmp_6.private_();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_6.private_());
         }
       }();
       // protopath=`proto3`
@@ -1903,7 +1922,8 @@ class SlotSetter {
             }
             auto* output = outputs.GetMutable25(offset);
             output->present = true;
-            output->value = tmp_5.non_optional_i32();
+            output->value = ::arolla::proto::ToArollaCompatibleType(
+                tmp_5.non_optional_i32());
           }
         }();
         // protopath=`proto3/non_optional_i32` name=`proto3__non_optional_i32`
@@ -1916,7 +1936,8 @@ class SlotSetter {
             }
             auto* output = outputs.GetMutable26(offset);
             output->present = true;
-            output->value = tmp_5.non_optional_i32();
+            output->value = ::arolla::proto::ToArollaCompatibleType(
+                tmp_5.non_optional_i32());
           }
         }();
       }();
@@ -1930,7 +1951,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable27(offset);
           output->present = true;
-          output->value = tmp_6.raw_bytes();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_6.raw_bytes());
         }
       }();
       // protopath=`count(repeated_bools[:])` name=`/repeated_bools/@size`
@@ -2037,7 +2059,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable38(offset);
           output->present = true;
-          output->value = tmp_8.str();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.str());
         }
       }();
       // protopath=`x` name=`/x`
@@ -2050,7 +2073,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable39(offset);
           output->present = true;
-          output->value = tmp_8.x();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.x());
         }
       }();
       // protopath=`x0` name=`/x0`
@@ -2063,7 +2087,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable40(offset);
           output->present = true;
-          output->value = tmp_8.x0();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.x0());
         }
       }();
       // protopath=`x1` name=`/x1`
@@ -2076,7 +2101,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable41(offset);
           output->present = true;
-          output->value = tmp_8.x1();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.x1());
         }
       }();
       // protopath=`x2` name=`/x2`
@@ -2089,7 +2115,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable42(offset);
           output->present = true;
-          output->value = tmp_8.x2();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.x2());
         }
       }();
       // protopath=`x3` name=`/x3`
@@ -2102,7 +2129,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable43(offset);
           output->present = true;
-          output->value = tmp_8.x3();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.x3());
         }
       }();
       // protopath=`x4` name=`/x4`
@@ -2115,7 +2143,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable44(offset);
           output->present = true;
-          output->value = tmp_8.x4();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.x4());
         }
       }();
       // protopath=`x5` name=`/x5`
@@ -2128,7 +2157,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable45(offset);
           output->present = true;
-          output->value = tmp_8.x5();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_8.x5());
         }
       }();
     }();
@@ -2148,7 +2178,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable46(offset);
           output->present = true;
-          output->value = tmp_9.x6();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x6());
         }
       }();
       // protopath=`x7` name=`/x7`
@@ -2161,7 +2192,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable47(offset);
           output->present = true;
-          output->value = tmp_9.x7();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x7());
         }
       }();
       // protopath=`x8` name=`/x8`
@@ -2174,7 +2206,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable48(offset);
           output->present = true;
-          output->value = tmp_9.x8();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x8());
         }
       }();
       // protopath=`x9` name=`/x9`
@@ -2187,7 +2220,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable49(offset);
           output->present = true;
-          output->value = tmp_9.x9();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x9());
         }
       }();
       // protopath=`x_bytes_cord` name=`/x_bytes_cord`
@@ -2200,7 +2234,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable50(offset);
           output->present = true;
-          output->value = tmp_9.x_bytes_cord();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x_bytes_cord());
         }
       }();
       // protopath=`x_bytes_string_view` name=`/x_bytes_string_view`
@@ -2213,7 +2248,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable51(offset);
           output->present = true;
-          output->value = tmp_9.x_bytes_string_view();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x_bytes_string_view());
         }
       }();
       // protopath=`x_double` name=`/x_double`
@@ -2226,7 +2262,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable52(offset);
           output->present = true;
-          output->value = tmp_9.x_double();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x_double());
         }
       }();
       // protopath=`x_enum` name=`/x_enum`
@@ -2239,7 +2276,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable53(offset);
           output->present = true;
-          output->value = tmp_9.x_enum();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_9.x_enum());
         }
       }();
     }();
@@ -2259,7 +2297,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable54(offset);
           output->present = true;
-          output->value = tmp_10.x_fixed64();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_10.x_fixed64());
         }
       }();
       // protopath=`x_float` name=`/x_float`
@@ -2272,7 +2311,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable55(offset);
           output->present = true;
-          output->value = tmp_10.x_float();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_10.x_float());
         }
       }();
       // protopath=`x_int64` name=`/x_int64`
@@ -2285,7 +2325,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable56(offset);
           output->present = true;
-          output->value = tmp_10.x_int64();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_10.x_int64());
         }
       }();
       // protopath=`x_string_cord` name=`/x_string_cord`
@@ -2298,7 +2339,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable57(offset);
           output->present = true;
-          output->value = tmp_10.x_string_cord();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_10.x_string_cord());
         }
       }();
       // protopath=`x_string_string_view` name=`/x_string_string_view`
@@ -2311,7 +2353,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable58(offset);
           output->present = true;
-          output->value = tmp_10.x_string_string_view();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_10.x_string_string_view());
         }
       }();
       // protopath=`x_uint32` name=`/x_uint32`
@@ -2324,7 +2367,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable59(offset);
           output->present = true;
-          output->value = tmp_10.x_uint32();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_10.x_uint32());
         }
       }();
       // protopath=`x_uint64` name=`/x_uint64`
@@ -2337,7 +2381,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable60(offset);
           output->present = true;
-          output->value = tmp_10.x_uint64();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_10.x_uint64());
         }
       }();
       // protopath=`count(ys[:])` name=`/ys/@size`
@@ -2365,7 +2410,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable62(offset);
           output->present = true;
-          output->value = tmp_11.broken_case();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_11.broken_case());
         }
       }();
       // protopath=`count(inners[:])` name=`inners__@size`
@@ -2386,7 +2432,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable64(offset);
           output->present = true;
-          output->value = tmp_11.private_();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_11.private_());
         }
       }();
       // protopath=`raw_bytes` name=`raw_bytes`
@@ -2399,7 +2446,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable65(offset);
           output->present = true;
-          output->value = tmp_11.raw_bytes();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_11.raw_bytes());
         }
       }();
       // protopath=`count(repeated_bools[:])` name=`repeated_bools__@size`
@@ -2499,7 +2547,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable76(offset);
           output->present = true;
-          output->value = tmp_12.str();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_12.str());
         }
       }();
       // protopath=`x` name=`x`
@@ -2512,7 +2561,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable77(offset);
           output->present = true;
-          output->value = tmp_12.x();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_12.x());
         }
       }();
     }();
@@ -2532,7 +2582,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable78(offset);
           output->present = true;
-          output->value = tmp_13.x0();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x0());
         }
       }();
       // protopath=`x1` name=`x1`
@@ -2545,7 +2596,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable79(offset);
           output->present = true;
-          output->value = tmp_13.x1();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x1());
         }
       }();
       // protopath=`x2` name=`x2`
@@ -2558,7 +2610,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable80(offset);
           output->present = true;
-          output->value = tmp_13.x2();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x2());
         }
       }();
       // protopath=`x3` name=`x3`
@@ -2571,7 +2624,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable81(offset);
           output->present = true;
-          output->value = tmp_13.x3();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x3());
         }
       }();
       // protopath=`x4` name=`x4`
@@ -2584,7 +2638,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable82(offset);
           output->present = true;
-          output->value = tmp_13.x4();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x4());
         }
       }();
       // protopath=`x5` name=`x5`
@@ -2597,7 +2652,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable83(offset);
           output->present = true;
-          output->value = tmp_13.x5();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x5());
         }
       }();
       // protopath=`x6` name=`x6`
@@ -2610,7 +2666,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable84(offset);
           output->present = true;
-          output->value = tmp_13.x6();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x6());
         }
       }();
       // protopath=`x7` name=`x7`
@@ -2623,7 +2680,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable85(offset);
           output->present = true;
-          output->value = tmp_13.x7();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_13.x7());
         }
       }();
     }();
@@ -2643,7 +2701,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable86(offset);
           output->present = true;
-          output->value = tmp_14.x8();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x8());
         }
       }();
       // protopath=`x9` name=`x9`
@@ -2656,7 +2715,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable87(offset);
           output->present = true;
-          output->value = tmp_14.x9();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x9());
         }
       }();
       // protopath=`x_bytes_cord` name=`x_bytes_cord`
@@ -2669,7 +2729,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable88(offset);
           output->present = true;
-          output->value = tmp_14.x_bytes_cord();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x_bytes_cord());
         }
       }();
       // protopath=`x_bytes_string_view` name=`x_bytes_string_view`
@@ -2682,7 +2743,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable89(offset);
           output->present = true;
-          output->value = tmp_14.x_bytes_string_view();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x_bytes_string_view());
         }
       }();
       // protopath=`x_double` name=`x_double`
@@ -2695,7 +2757,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable90(offset);
           output->present = true;
-          output->value = tmp_14.x_double();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x_double());
         }
       }();
       // protopath=`x_enum` name=`x_enum`
@@ -2708,7 +2771,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable91(offset);
           output->present = true;
-          output->value = tmp_14.x_enum();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x_enum());
         }
       }();
       // protopath=`x_fixed64` name=`x_fixed64`
@@ -2721,7 +2785,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable92(offset);
           output->present = true;
-          output->value = tmp_14.x_fixed64();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x_fixed64());
         }
       }();
       // protopath=`x_float` name=`x_float`
@@ -2734,7 +2799,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable93(offset);
           output->present = true;
-          output->value = tmp_14.x_float();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_14.x_float());
         }
       }();
     }();
@@ -2754,7 +2820,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable94(offset);
           output->present = true;
-          output->value = tmp_15.x_int64();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_15.x_int64());
         }
       }();
       // protopath=`x_string_cord` name=`x_string_cord`
@@ -2767,7 +2834,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable95(offset);
           output->present = true;
-          output->value = tmp_15.x_string_cord();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_15.x_string_cord());
         }
       }();
       // protopath=`x_string_string_view` name=`x_string_string_view`
@@ -2780,7 +2848,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable96(offset);
           output->present = true;
-          output->value = tmp_15.x_string_string_view();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_15.x_string_string_view());
         }
       }();
       // protopath=`x_uint32` name=`x_uint32`
@@ -2793,7 +2862,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable97(offset);
           output->present = true;
-          output->value = tmp_15.x_uint32();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_15.x_uint32());
         }
       }();
       // protopath=`x_uint64` name=`x_uint64`
@@ -2806,7 +2876,8 @@ class SlotSetter {
           }
           auto* output = outputs.GetMutable98(offset);
           output->present = true;
-          output->value = tmp_15.x_uint64();
+          output->value = ::arolla::proto::ToArollaCompatibleType(
+              tmp_15.x_uint64());
         }
       }();
       // protopath=`count(ys[:])` name=`ys__@size`
@@ -7194,21 +7265,28 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
 };
 
 }  // namespace multi_value_protopath
+}  // namespace
 
 // Returns ChainInputLoader: Accessors, Single- and Multi-value proto.
 const InputLoader<Input>*
 GetCollectionInputLoader() {
   static const InputLoader<Input>* impl = ChainInputLoader<Input>::Build(
           // Not using make_unique to avoid binary size blowup.
-          ::arolla::InputLoaderPtr<Input>(static_cast<const InputLoader<Input>*>(
+          ::arolla::InputLoaderPtr<Input>(static_cast<InputLoader<Input>*>(
             new single_value_protopath::Loader())),
           // Not using make_unique to avoid binary size blowup.
-          ::arolla::InputLoaderPtr<Input>(static_cast<const InputLoader<Input>*>(
+          ::arolla::InputLoaderPtr<Input>(static_cast<InputLoader<Input>*>(
             new multi_value_protopath::Loader()))
       )->release();
   return impl;
 }
+}  // namespace
 
+
+namespace {
+
+constexpr auto GetAllShardsInputLoader =
+    ::my_namespace_GetDescriptorBasedLoaderImplNamespace::GetCollectionInputLoader;
 
 }  // namespace
 }  // namespace my_namespace_GetDescriptorBasedLoaderImplNamespace
@@ -7217,7 +7295,8 @@ namespace my_namespace {
 
 ::arolla::InputLoaderPtr<::testing_namespace::Root>
 GetDescriptorBasedLoader() {
-  return MakeNotOwningInputLoader(::my_namespace_GetDescriptorBasedLoaderImplNamespace::GetCollectionInputLoader());
+  return MakeNotOwningInputLoader(
+      ::my_namespace_GetDescriptorBasedLoaderImplNamespace::GetAllShardsInputLoader());
 }
 
 }  // namespace my_namespace

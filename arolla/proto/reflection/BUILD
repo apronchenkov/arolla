@@ -20,6 +20,7 @@ cc_library(
     name = "reflection",
     srcs = ["reader.cc"],
     hdrs = ["reader.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/dense_array",
         "//arolla/dense_array/qtype",
@@ -33,7 +34,7 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
-        "@com_google_protobuf//:protoc",
+        "@com_google_protobuf//:protobuf",
     ],
 )
 
@@ -57,7 +58,7 @@ cc_test(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_googletest//:gtest_main",
-        "@com_google_protobuf//:protoc",
+        "@com_google_protobuf//:protobuf",
     ],
 )
 
@@ -73,6 +74,6 @@ cc_test(
         "//arolla/util/testing",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
-        "@com_google_protobuf//:protoc",
+        "@com_google_protobuf//:protobuf",
     ],
 )

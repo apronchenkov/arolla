@@ -14,6 +14,7 @@
 //
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -22,6 +23,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "arolla/codegen/io/testing/test_input_loader_compilation_stress.h"
+#include "arolla/codegen/io/testing/test_input_loader_compilation_stress_sharded.h"
 #include "arolla/dense_array/qtype/types.h"
 #include "arolla/io/input_loader.h"
 #include "arolla/memory/frame.h"
@@ -35,28 +37,31 @@ namespace {
 
 TEST(InputLoaderTest, TestCompilationStressLoader) {
   auto i32 = GetQType<int32_t>();
-  const auto& input_loader = ::my_namespace_stress::GetStressLoader();
-  absl::flat_hash_map<std::string, QTypePtr> output_types;
-  size_t N = output_types.size();
-  for (int i = 0; i != N; ++i) {
-    std::string name = absl::StrCat("a", i);
-    EXPECT_EQ(input_loader->GetQTypeOf(name), i32);
-    output_types.emplace(name, i32);
-  }
-  FrameLayout::Builder layout_builder;
-  auto slots_map = AddSlotsMap(output_types, &layout_builder);
-  ASSERT_OK_AND_ASSIGN(BoundInputLoader<int> bound_input_loader,
-                       input_loader->Bind(slots_map));
+  for (const auto& input_loader :
+       {::my_namespace_stress::GetStressLoader(),
+        ::my_namespace_stress::GetStressShardedLoader()}) {
+    absl::flat_hash_map<std::string, QTypePtr> output_types;
+    size_t N = output_types.size();
+    for (int i = 0; i != N; ++i) {
+      std::string name = absl::StrCat("a", i);
+      EXPECT_EQ(input_loader->GetQTypeOf(name), i32);
+      output_types.emplace(name, i32);
+    }
+    FrameLayout::Builder layout_builder;
+    auto slots_map = AddSlotsMap(output_types, &layout_builder);
+    ASSERT_OK_AND_ASSIGN(BoundInputLoader<int> bound_input_loader,
+                         input_loader->Bind(slots_map));
 
-  FrameLayout memory_layout = std::move(layout_builder).Build();
-  MemoryAllocation alloc(&memory_layout);
-  FramePtr frame = alloc.frame();
+    FrameLayout memory_layout = std::move(layout_builder).Build();
+    MemoryAllocation alloc(&memory_layout);
+    FramePtr frame = alloc.frame();
 
-  ASSERT_OK(bound_input_loader(19, frame));
-  for (int i = 0; i != N; ++i) {
-    ASSERT_OK_AND_ASSIGN(auto slot,
-                         slots_map.at(absl::StrCat("a", i)).ToSlot<int>());
-    EXPECT_EQ(frame.Get(slot), 19 + i);
+    ASSERT_OK(bound_input_loader(19, frame));
+    for (int i = 0; i != N; ++i) {
+      ASSERT_OK_AND_ASSIGN(auto slot,
+                           slots_map.at(absl::StrCat("a", i)).ToSlot<int>());
+      EXPECT_EQ(frame.Get(slot), 19 + i);
+    }
   }
 }
 

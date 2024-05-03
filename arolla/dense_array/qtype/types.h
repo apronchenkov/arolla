@@ -123,17 +123,17 @@ class DenseArrayQType : public DenseArrayQTypeBase {
   extern template class DenseArrayQType<__VA_ARGS__>;             \
   AROLLA_DECLARE_QTYPE(DenseArray<__VA_ARGS__>)
 
-#define AROLLA_DEFINE_DENSE_ARRAY_QTYPE(NAME, /*VALUE_TYPE*/...)              \
-  template class DenseArrayQType<__VA_ARGS__>;                                \
-  QTypePtr QTypeTraits<DenseArray<__VA_ARGS__>>::type() {                     \
-    static const Indestructible<DenseArrayQType<__VA_ARGS__>> result(         \
-        [](void* self) {                                                      \
-          (new (self) DenseArrayQType<__VA_ARGS__>(                           \
-               meta::type<DenseArray<__VA_ARGS__>>(), ("DENSE_ARRAY_" #NAME), \
-               GetQType<__VA_ARGS__>()))                                      \
-              ->RegisterValueQType();                                         \
-        });                                                                   \
-    return result.get();                                                      \
+#define AROLLA_DEFINE_DENSE_ARRAY_QTYPE(NAME, /*VALUE_TYPE*/...)         \
+  template class DenseArrayQType<__VA_ARGS__>;                           \
+  QTypePtr QTypeTraits<DenseArray<__VA_ARGS__>>::type() {                \
+    static const QTypePtr result([] {                                    \
+      auto* result = new DenseArrayQType<__VA_ARGS__>(                   \
+          meta::type<DenseArray<__VA_ARGS__>>(), ("DENSE_ARRAY_" #NAME), \
+          GetQType<__VA_ARGS__>());                                      \
+      result->RegisterValueQType();                                      \
+      return result;                                                     \
+    }());                                                                \
+    return result;                                                       \
   }
 
 // Declare QTypeTraits<DenseArray<T>> for primitive types.

@@ -24,9 +24,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -120,16 +122,15 @@ class InputLoader : public InputLoaderBase {
  protected:
   // Implementation of Bind, which can assume that
   // 1. output_slots are not empty
-  // 2. there are no slots with names not present in `GetOutputTypes`
-  // 3. each name from `GetOutputTypes` is either missing in output_slots
-  //    or has correct type.
+  // 2. for each (name, slot) in output_slots `GetQTypeOf(name)` is not null and
+  // is equal to `slot->GetType()`.
   virtual absl::StatusOr<BoundInputLoader<Input>> BindImpl(
       const absl::flat_hash_map<std::string, TypedSlot>& output_slots)
       const = 0;
 };
 
 template <typename T>
-using InputLoaderPtr = std::unique_ptr<const InputLoader<T>>;
+using InputLoaderPtr = std::unique_ptr<InputLoader<T>>;
 
 // A helper to construct type erased QType getter for an input loader. The
 // functor will not own the input loader.
@@ -228,7 +229,7 @@ class NotOwningInputLoader final : public InputLoader<T> {
 // guarantee that the wrapped InputLoader will outlive the wrapper.
 template <typename T>
 InputLoaderPtr<T> MakeNotOwningInputLoader(const InputLoader<T>* input_loader) {
-  return std::unique_ptr<const InputLoader<T>>(
+  return std::unique_ptr<InputLoader<T>>(
       new input_loader_impl::NotOwningInputLoader<T>(input_loader));
 }
 
@@ -266,7 +267,7 @@ class SharedOwningInputLoader final : public InputLoader<T> {
 template <typename T>
 InputLoaderPtr<T> MakeSharedOwningInputLoader(
     std::shared_ptr<const InputLoader<T>> input_loader) {
-  return std::unique_ptr<const InputLoader<T>>(
+  return std::unique_ptr<InputLoader<T>>(
       new input_loader_impl::SharedOwningInputLoader<T>(input_loader));
 }
 
@@ -278,7 +279,7 @@ template <typename T>
 class FilteringInputLoader final : public InputLoader<T> {
  public:
   explicit FilteringInputLoader(
-      std::unique_ptr<const InputLoader<T>> input_loader,
+      std::unique_ptr<InputLoader<T>> input_loader,
       std::function<bool(absl::string_view)> filter_fn)
       : input_loader_(std::move(input_loader)),
         filter_fn_(std::move(filter_fn)) {}
@@ -306,7 +307,7 @@ class FilteringInputLoader final : public InputLoader<T> {
     return input_loader_->Bind(output_slots);
   }
 
-  std::unique_ptr<const InputLoader<T>> input_loader_;
+  std::unique_ptr<InputLoader<T>> input_loader_;
   std::function<bool(absl::string_view)> filter_fn_;
 };
 
@@ -315,10 +316,10 @@ class FilteringInputLoader final : public InputLoader<T> {
 // Creates an InputLoader that supports only that names from the original
 // input_loader for which filter_fn returns true.
 template <typename T>
-std::unique_ptr<const InputLoader<T>> MakeFilteringInputLoader(
-    std::unique_ptr<const InputLoader<T>> input_loader,
+std::unique_ptr<InputLoader<T>> MakeFilteringInputLoader(
+    std::unique_ptr<InputLoader<T>> input_loader,
     std::function<bool(absl::string_view)> filter_fn) {
-  return std::unique_ptr<const InputLoader<T>>(
+  return std::unique_ptr<InputLoader<T>>(
       new input_loader_impl::FilteringInputLoader<T>(std::move(input_loader),
                                                      std::move(filter_fn)));
 }
@@ -326,8 +327,8 @@ std::unique_ptr<const InputLoader<T>> MakeFilteringInputLoader(
 // Creates an InputLoader that supports only that names from the original
 // input_loader that are mentioned in allowed_names.
 template <typename T>
-std::unique_ptr<const InputLoader<T>> MakeFilteringInputLoader(
-    std::unique_ptr<const InputLoader<T>> input_loader,
+std::unique_ptr<InputLoader<T>> MakeFilteringInputLoader(
+    std::unique_ptr<InputLoader<T>> input_loader,
     absl::Span<const std::string> allowed_names) {
   return MakeFilteringInputLoader(
       std::move(input_loader),
@@ -374,9 +375,9 @@ template <class Input>
 class ChainInputLoader final : public InputLoader<Input> {
  public:
   // Creates ChainInputLoader, returns not OK on duplicated names.
-  template <class... LoaderUniquePtrs>
+  template <class... Loaders>
   static absl::StatusOr<InputLoaderPtr<Input>> Build(
-      LoaderUniquePtrs... loaders) {
+      std::unique_ptr<Loaders>... loaders) {
     std::vector<InputLoaderPtr<Input>> loaders_vec;
     (loaders_vec.push_back(std::move(loaders)), ...);
     return Build(std::move(loaders_vec));
@@ -384,8 +385,37 @@ class ChainInputLoader final : public InputLoader<Input> {
   static absl::StatusOr<InputLoaderPtr<Input>> Build(
       std::vector<InputLoaderPtr<Input>> loaders) {
     // Not using make_shared to avoid binary size blowup.
-    return InputLoaderPtr<Input>(static_cast<const InputLoader<Input>*>(
+    return InputLoaderPtr<Input>(static_cast<InputLoader<Input>*>(
         new ChainInputLoader(std::move(loaders))));
+  }
+
+  // Function to invoke bound loaders that can be customized externally.
+  using InvokeBoundLoadersFn = std::function<absl::Status(
+      absl::Span<const BoundInputLoader<Input>>, const Input& input,
+      FramePtr frame, RawBufferFactory* factory)>;
+
+  // Invokes all bound loaders sequentially.
+  // It is a default implementation for InvokeBoundLoadersFn.
+  static absl::Status InvokeBoundLoaders(
+      absl::Span<const BoundInputLoader<Input>> bound_loaders,
+      const Input& input, FramePtr frame, RawBufferFactory* factory) {
+    for (const auto& loader : bound_loaders) {
+      RETURN_IF_ERROR(loader(input, frame, factory));
+    }
+    return absl::OkStatus();
+  }
+
+  // Creates ChainInputLoader with customizable `invoke_bound_loaders` strategy.
+  // This may run loaders in parallel or perform additional logging.
+  // NOTE: as an optimization, this function is not going to be used
+  // if 0 or 1 loaders will be required.
+  static absl::StatusOr<InputLoaderPtr<Input>> Build(
+      std::vector<InputLoaderPtr<Input>> loaders,
+      InvokeBoundLoadersFn invoke_bound_loaders_fn) {
+    // Not using make_shared to avoid binary size blowup.
+    return InputLoaderPtr<Input>(
+        static_cast<InputLoader<Input>*>(new ChainInputLoader(
+            std::move(loaders), std::move(invoke_bound_loaders_fn))));
   }
 
   absl::Nullable<const QType*> GetQTypeOf(absl::string_view name) const final {
@@ -410,6 +440,11 @@ class ChainInputLoader final : public InputLoader<Input> {
   explicit ChainInputLoader(std::vector<InputLoaderPtr<Input>> loaders)
       : loaders_(std::move(loaders)) {}
 
+  explicit ChainInputLoader(std::vector<InputLoaderPtr<Input>> loaders,
+                            InvokeBoundLoadersFn invoke_bound_loaders_fn)
+      : loaders_(std::move(loaders)),
+        invoke_bound_loaders_fn_(std::move(invoke_bound_loaders_fn)) {}
+
   absl::StatusOr<BoundInputLoader<Input>> BindImpl(
       const absl::flat_hash_map<std::string, TypedSlot>& output_slots)
       const final {
@@ -423,18 +458,21 @@ class ChainInputLoader final : public InputLoader<Input> {
     if (bound_loaders.size() == 1) {
       return bound_loaders[0];
     }
+    if (invoke_bound_loaders_fn_) {
+      return BoundInputLoader<Input>(
+          absl::bind_front(invoke_bound_loaders_fn_, bound_loaders));
+    }
     return BoundInputLoader<Input>(
         [bound_loaders(std::move(bound_loaders))](
             const Input& input, FramePtr frame,
             RawBufferFactory* factory) -> absl::Status {
-          for (const auto& loader : bound_loaders) {
-            RETURN_IF_ERROR(loader(input, frame, factory));
-          }
-          return absl::OkStatus();
+          return ChainInputLoader<Input>::InvokeBoundLoaders(
+              bound_loaders, input, frame, factory);
         });
   }
 
   std::vector<InputLoaderPtr<Input>> loaders_;
+  InvokeBoundLoadersFn invoke_bound_loaders_fn_ = nullptr;
 };
 
 }  // namespace arolla

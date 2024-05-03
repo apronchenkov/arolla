@@ -36,6 +36,7 @@
 #include "arolla/qexpr/eval_context.h"
 #include "arolla/util/unit.h"
 #include "arolla/util/view_types.h"
+#include "arolla/util/status_macros_backport.h"
 
 namespace arolla {
 
@@ -103,6 +104,8 @@ struct DenseArraySliceOp {
     if (size == -1) {
       size = array.size() - offset;
     }
+    // Note: we use ForceNoBimapBitOffset because for performance reasons
+    // `lift_to_dense_array` has NoBitmapOffset=true.
     return array.Slice(offset, size)
         .ForceNoBitmapBitOffset(&ctx->buffer_factory());
   }
@@ -219,6 +222,37 @@ struct DenseArrayUniqueOp {
       }
     });
     return DenseArray<T>{std::move(bldr).Build(unique_values.size())};
+  }
+};
+
+// array.select selects elements in the first argument if the filter mask is
+// present and filters out missing items.
+struct DenseArraySelectOp {
+  template <typename T>
+  absl::StatusOr<DenseArray<T>> operator()(
+      EvaluationContext* ctx, const DenseArray<T>& input,
+      const DenseArray<Unit>& filter) const {
+    if (ABSL_PREDICT_FALSE(input.size() != filter.size())) {
+      return SizeMismatchError({input.size(), filter.size()});
+    }
+    if (filter.bitmap.empty()) {
+      return input;
+    }
+    const int64_t count = filter.PresentCount();
+    if (count == 0) {
+      return DenseArray<T>();
+    }
+
+    DenseArrayBuilder<T> builder(count);
+
+    int64_t offset = 0;
+    using view_type = arolla::view_type_t<T>;
+    auto fn = [&](int64_t id, Unit mask, OptionalValue<view_type> value) {
+      builder.Set(offset++, value);
+    };
+
+    RETURN_IF_ERROR(DenseArraysForEachPresent(fn, filter, input));
+    return std::move(builder).Build();
   }
 };
 

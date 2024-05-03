@@ -18,22 +18,19 @@ licenses(["notice"])
 
 proto_library(
     name = "array_codec_proto",
-    srcs = [
-        "array_codec.proto",
-    ],
+    srcs = ["array_codec.proto"],
     deps = ["//arolla/serialization_base:base_proto"],
 )
 
 cc_proto_library(
     name = "array_codec_cc_proto",
-    deps = [
-        ":array_codec_proto",
-    ],
+    deps = [":array_codec_proto"],
 )
 
 cc_library(
     name = "codec_name",
     hdrs = ["codec_name.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     visibility = [":__subpackages__"],
     deps = ["@com_google_absl//absl/strings:string_view"],
 )

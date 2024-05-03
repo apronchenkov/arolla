@@ -95,7 +95,7 @@ OptionalUnit ContainsOp::operator()(absl::string_view str,
 
 int32_t SubstringOccurrenceCountOp::operator()(absl::string_view str,
                                                absl::string_view substr) const {
-  if (substr.length() == 0) {
+  if (substr.empty()) {
     return str.length() + 1;
   }
   int count = 0;
@@ -125,9 +125,8 @@ OptionalValue<int64_t> FindSubstring(absl::string_view str,
 OptionalValue<int64_t> FindSubstringOp::operator()(
     const Bytes& str, const Bytes& substr, OptionalValue<int64_t> start,
     OptionalValue<int64_t> end) const {
-  if (AdjustIndexes(str.view().size(), start, end)) {
-    return FindSubstring(absl::string_view(str), absl::string_view(substr),
-                         start.value, end.value);
+  if (AdjustIndexes(str.size(), start, end)) {
+    return FindSubstring(str, substr, start.value, end.value);
   } else {
     return {};
   }
@@ -136,7 +135,7 @@ OptionalValue<int64_t> FindSubstringOp::operator()(
 OptionalValue<int64_t> FindSubstringOp::operator()(
     const Text& str, const Text& substr, OptionalValue<int64_t> start,
     OptionalValue<int64_t> end) const {
-  auto index = UTF8StringIndex(str.view());
+  auto index = UTF8StringIndex(absl::string_view(str));
   if (AdjustIndexes(index.size() - 1, start, end)) {
     auto byte_offset =
         FindSubstring(absl::string_view(str), absl::string_view(substr),
@@ -168,9 +167,8 @@ OptionalValue<int64_t> FindLastSubstring(absl::string_view str,
 OptionalValue<int64_t> FindLastSubstringOp::operator()(
     const Bytes& str, const Bytes& substr, OptionalValue<int64_t> start,
     OptionalValue<int64_t> end) const {
-  if (AdjustIndexes(str.view().size(), start, end)) {
-    return FindLastSubstring(absl::string_view(str), absl::string_view(substr),
-                             start.value, end.value);
+  if (AdjustIndexes(str.size(), start, end)) {
+    return FindLastSubstring(str, substr, start.value, end.value);
   } else {
     return {};
   }
@@ -179,7 +177,7 @@ OptionalValue<int64_t> FindLastSubstringOp::operator()(
 OptionalValue<int64_t> FindLastSubstringOp::operator()(
     const Text& str, const Text& substr, OptionalValue<int64_t> start,
     OptionalValue<int64_t> end) const {
-  auto index = UTF8StringIndex(str.view());
+  auto index = UTF8StringIndex(absl::string_view(str));
   if (AdjustIndexes(index.size() - 1, start, end)) {
     auto byte_offset =
         FindLastSubstring(absl::string_view(str), absl::string_view(substr),
@@ -214,15 +212,16 @@ absl::string_view SubstringOp::operator()(absl::string_view str,
 
 Bytes SubstringOp::operator()(const Bytes& str, OptionalValue<int64_t> start,
                               OptionalValue<int64_t> end) const {
-  return Bytes((*this)(str.view(), start, end));
+  return Bytes((*this)(absl::string_view(str), start, end));
 }
 
 Text SubstringOp::operator()(const Text& str, OptionalValue<int64_t> start,
                              OptionalValue<int64_t> end) const {
-  auto index = UTF8StringIndex(str.view());
+  auto index = UTF8StringIndex(absl::string_view(str));
   std::string substr;
   if (AdjustIndexes(index.size() - 1, start, end)) {
-    substr = Substring(str.view(), index[start.value], index[end.value]);
+    substr =
+        Substring(absl::string_view(str), index[start.value], index[end.value]);
   }
   return Text(substr);
 }

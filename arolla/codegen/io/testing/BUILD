@@ -14,6 +14,7 @@
 
 # Tests and testing utilities for codegen facilities.
 
+load("@rules_python//python:defs.bzl", "py_library")
 load("//arolla/codegen:utils.bzl", "call_python_function")
 load(
     "//arolla/codegen/io:io.bzl",
@@ -48,6 +49,7 @@ cc_library(
     name = "test_native_struct",
     testonly = 1,
     hdrs = ["test_native_struct.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = ["//arolla/proto:test_cc_proto"],
 )
 
@@ -56,6 +58,7 @@ cc_library(
     testonly = True,
     srcs = ["test_proto_qtype.cc"],
     hdrs = ["test_proto_qtype.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/dense_array/qtype",
         "//arolla/proto:test_cc_proto",
@@ -83,7 +86,22 @@ input_loader(
     ],
     input_cls = "int",
     loader_name = "::my_namespace_stress::GetStressLoader",
-    deps = [],
+)
+
+input_loader(
+    name = "test_input_loader_compilation_stress_sharded",
+    testonly = 1,
+    hdrs = [],
+    accessors = [
+        path_accessor(
+            " + %d" % i,
+            name = "a%d" % i,
+        )
+        for i in range(10000)
+    ],
+    input_cls = "int",
+    loader_name = "::my_namespace_stress::GetStressShardedLoader",
+    sharding = sharding_info(shard_count = 100),
 )
 
 test_accessors = [
@@ -99,7 +117,6 @@ input_loader(
     accessors = test_accessors,
     input_cls = "int",
     loader_name = "::my_namespace::GetLoader",
-    deps = [],
 )
 
 input_loader(
@@ -110,7 +127,6 @@ input_loader(
     input_cls = "int",
     loader_name = "::my_namespace::GetOverShardedLoader",
     sharding = sharding_info(shard_count = 100),
-    deps = [],
 )
 
 input_loader(
@@ -128,7 +144,6 @@ input_loader(
     )],
     input_cls = "int",
     loader_name = "::my_namespace::GetLoaderFilteredByFn",
-    deps = [],
 )
 
 input_loader(
@@ -149,7 +164,6 @@ input_loader(
     )],
     input_cls = "int",
     loader_name = "::my_namespace::GetLoader",
-    deps = [],
 )
 
 cc_test(
@@ -272,7 +286,7 @@ input_loader(
     array_type = "DenseArray",
     input_cls = "::testing_namespace::Root",
     loader_name = "::my_namespace::GetDescriptorBasedLoaderWithoutRepeated",
-    sharding = sharding_info(shard_count = 7),
+    sharding = sharding_info(shard_count = 4),
     deps = [
         "//arolla/proto:test_cc_proto",
         "//arolla/proto:test_proto3_cc_proto",
@@ -992,6 +1006,7 @@ cc_binary(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -1008,6 +1023,7 @@ cc_binary(
         "//arolla/proto:test_cc_proto",
         "//arolla/proto:test_extension_cc_proto",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -1028,6 +1044,7 @@ cc_binary(
         "//arolla/qtype",
         "@com_google_absl//absl/log:check",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -1378,6 +1395,7 @@ cc_binary(
         "//arolla/io/proto/testing",
         "//arolla/proto:test_cc_proto",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -1427,7 +1445,6 @@ input_loader(
     ],
     input_cls = "::std::array<int, 10>",
     loader_name = "::my_namespace::GetAccessorsGeneratedArrayLoader",
-    deps = [],
 )
 
 input_loader(
@@ -1460,7 +1477,6 @@ input_loader_set(
         args = [],
         deps = [":accessor_generators"],
     ),
-    deps = [],
 )
 
 input_loader_set(
@@ -1470,23 +1486,23 @@ input_loader_set(
         "::my_namespace::ShardedLoader": {
             "accessors": test_accessors,
             "input_cls": "int",
-            "sharding": sharding_info(shard_count = 100),
+            "sharding": sharding_info(shard_count = 3),
             "hdrs": [],
         },
         "::my_namespace::NonShardedLoader": {
             "accessors": test_accessors,
-            "input_cls": "int64_t",
+            "input_cls": "int",
             "hdrs": [],
         },
     },
-    deps = [],
+    max_shard_count = 4,  # last file will be empty
 )
 
 input_loader_set(
     name = "test_input_loader_set_call_spec_py_func_value",
     testonly = 1,
     loaders_spec = {
-        "::my_namespace::ShardedLoader": {
+        "::my_namespace::LoaderFromPyFunc": {
             "accessors": test_accessors,
             "input_cls": call_python_function(
                 "arolla.codegen.io.testing.accessor_generators.gen_input_loader_set_input_cls",
@@ -1496,7 +1512,6 @@ input_loader_set(
             "hdrs": [],
         },
     },
-    deps = [],
 )
 
 slot_listener_set(
@@ -1507,7 +1522,6 @@ slot_listener_set(
         args = [],
         deps = [":accessor_generators"],
     ),
-    deps = [],
 )
 
 cc_test(
@@ -1572,6 +1586,7 @@ cc_test(
     srcs = ["input_loader_stress_test.cc"],
     deps = [
         ":test_input_loader_compilation_stress",
+        ":test_input_loader_compilation_stress_sharded",
         "//arolla/dense_array/qtype",
         "//arolla/io",
         "//arolla/memory",
@@ -1597,6 +1612,19 @@ cc_test(
         "//arolla/util:status_backport",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "input_loader_set_test",
+    srcs = ["input_loader_set_test.cc"],
+    deps = [
+        ":test_input_loader_set_spec_by_value",
+        "//arolla/io",
+        "//arolla/io/testing",
+        "//arolla/memory",
+        "//arolla/qtype",
         "@com_google_googletest//:gtest_main",
     ],
 )

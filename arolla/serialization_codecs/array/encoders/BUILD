@@ -21,6 +21,7 @@ cc_library(
     srcs = [
         "array_encoder.cc",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/array",
         "//arolla/array/qtype",
@@ -42,7 +43,7 @@ cc_library(
     alwayslink = True,
 )
 
-# See tests in python/arolla/s11n/testing
+# See tests in py/arolla/s11n/testing
 cc_test(
     name = "array_encoder_test",
     srcs = ["array_encoder_test.cc"],

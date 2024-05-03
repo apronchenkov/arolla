@@ -519,47 +519,77 @@ TYPED_TEST(JaggedShapeTest, Fingerprint) {
             FingerprintHasher("salt").Combine(*shape4).Finish());
 }
 
-TYPED_TEST(JaggedShapeTest, IsProbablyEquivalentTo) {
+TYPED_TEST(JaggedShapeTest, FastEquivalenceCheck) {
   using Shape = typename TestFixture::Shape;
   using Helper = typename TestFixture::Helper;
+  JaggedShapeFastEquivalenceResult kEqSizes(
+      JaggedShapeFastEquivalenceResult::kSizesEq);
+  JaggedShapeFastEquivalenceResult kNotEq(
+      JaggedShapeFastEquivalenceResult::kNotEq);
+  JaggedShapeFastEquivalenceResult kEq(
+      JaggedShapeFastEquivalenceResult::kEq);
   {
-    // Equal shapes -> True.
+    SCOPED_TRACE("Empty is fully equal.");
+    auto shape = Shape::Empty();
+    EXPECT_EQ(shape->FastEquivalenceCheck(*shape), kEq);
+  }
+  {
+    SCOPED_TRACE("Rank 1 is fully equal.");
+    ASSERT_OK_AND_ASSIGN(auto edge1, Helper::EdgeFromSplitPoints({0, 2}));
+    ASSERT_OK_AND_ASSIGN(auto shape, Shape::FromEdges({edge1}));
+    EXPECT_EQ(shape->FastEquivalenceCheck(*shape), kEq);
+
+    // Test a different pointers.
+    ASSERT_OK_AND_ASSIGN(auto shape2, Shape::FromEdges({edge1}));
+    EXPECT_EQ(shape->FastEquivalenceCheck(*shape2), kEq);
+    EXPECT_EQ(shape2->FastEquivalenceCheck(*shape), kEq);
+
+    // Test a different pointers for edges as well.
+    ASSERT_OK_AND_ASSIGN(auto edge1_new, Helper::EdgeFromSplitPoints({0, 2}));
+    ASSERT_OK_AND_ASSIGN(auto shape2_new, Shape::FromEdges({edge1_new}));
+    EXPECT_EQ(shape->FastEquivalenceCheck(*shape2_new), kEq);
+    EXPECT_EQ(shape2_new->FastEquivalenceCheck(*shape), kEq);
+  }
+  {
+    SCOPED_TRACE("Equal shapes.");
     ASSERT_OK_AND_ASSIGN(auto edge1, Helper::EdgeFromSplitPoints({0, 2}));
     ASSERT_OK_AND_ASSIGN(auto edge2, Helper::EdgeFromSplitPoints({0, 1, 3}));
     ASSERT_OK_AND_ASSIGN(auto edge3, Helper::EdgeFromSplitPoints({0, 1, 2, 4}));
     ASSERT_OK_AND_ASSIGN(auto shape1, Shape::FromEdges({edge1, edge2, edge3}));
     ASSERT_OK_AND_ASSIGN(auto shape2, Shape::FromEdges({edge1, edge2, edge3}));
-    EXPECT_TRUE(shape1->IsProbablyEquivalentTo(*shape2));
-    EXPECT_TRUE(shape2->IsProbablyEquivalentTo(*shape1));
+    EXPECT_EQ(shape1->FastEquivalenceCheck(*shape1), kEq)
+        << "the same pointer must be exact equal";
+    EXPECT_EQ(shape1->FastEquivalenceCheck(*shape2), kEqSizes);
+    EXPECT_EQ(shape2->FastEquivalenceCheck(*shape1), kEqSizes);
   }
   {
-    // Different shapes -> False.
+    SCOPED_TRACE("Different shapes.");
     ASSERT_OK_AND_ASSIGN(auto edge1, Helper::EdgeFromSplitPoints({0, 2}));
     ASSERT_OK_AND_ASSIGN(auto shape1, Shape::FromEdges({edge1}));
     ASSERT_OK_AND_ASSIGN(auto edge2, Helper::EdgeFromSplitPoints({0, 3}));
     ASSERT_OK_AND_ASSIGN(auto shape2, Shape::FromEdges({edge2}));
-    EXPECT_FALSE(shape1->IsProbablyEquivalentTo(*shape2));
-    EXPECT_FALSE(shape2->IsProbablyEquivalentTo(*shape1));
+    EXPECT_EQ(shape1->FastEquivalenceCheck(*shape2), kNotEq);
+    EXPECT_EQ(shape2->FastEquivalenceCheck(*shape1), kNotEq);
   }
   {
-    // Different ranks -> False.
+    SCOPED_TRACE("Different ranks.");
     ASSERT_OK_AND_ASSIGN(auto edge1, Helper::EdgeFromSplitPoints({0, 2}));
     ASSERT_OK_AND_ASSIGN(auto edge2, Helper::EdgeFromSplitPoints({0, 1, 3}));
     ASSERT_OK_AND_ASSIGN(auto shape1, Shape::FromEdges({edge1, edge2}));
     ASSERT_OK_AND_ASSIGN(auto shape2, Shape::FromEdges({edge1}));
-    EXPECT_FALSE(shape1->IsProbablyEquivalentTo(*shape2));
-    EXPECT_FALSE(shape2->IsProbablyEquivalentTo(*shape1));
+    EXPECT_EQ(shape1->FastEquivalenceCheck(*shape2), kNotEq);
+    EXPECT_EQ(shape2->FastEquivalenceCheck(*shape1), kNotEq);
   }
   {
-    // False negative.
+    SCOPED_TRACE("False negative.");
     ASSERT_OK_AND_ASSIGN(auto edge1, Helper::EdgeFromSplitPoints({0, 2}));
     ASSERT_OK_AND_ASSIGN(auto edge2, Helper::EdgeFromSplitPoints({0, 1, 3}));
     ASSERT_OK_AND_ASSIGN(auto shape1, Shape::FromEdges({edge1, edge2}));
     ASSERT_OK_AND_ASSIGN(auto edge3, Helper::EdgeFromSplitPoints({0, 2}));
     ASSERT_OK_AND_ASSIGN(auto edge4, Helper::EdgeFromSplitPoints({0, 2, 3}));
     ASSERT_OK_AND_ASSIGN(auto shape2, Shape::FromEdges({edge3, edge4}));
-    EXPECT_TRUE(shape1->IsProbablyEquivalentTo(*shape2));
-    EXPECT_TRUE(shape2->IsProbablyEquivalentTo(*shape1));
+    EXPECT_EQ(shape1->FastEquivalenceCheck(*shape2), kEqSizes);
+    EXPECT_EQ(shape2->FastEquivalenceCheck(*shape1), kEqSizes);
   }
 }
 
@@ -575,6 +605,7 @@ TYPED_TEST(JaggedShapeTest, EqOp) {
     ASSERT_OK_AND_ASSIGN(auto shape2, Shape::FromEdges({edge1, edge2, edge3}));
     EXPECT_TRUE(shape1->IsEquivalentTo(*shape2));
     EXPECT_TRUE(shape2->IsEquivalentTo(*shape1));
+    EXPECT_TRUE(shape1->IsEquivalentTo(*shape1));
   }
   {
     // Different shapes -> False.
@@ -619,6 +650,7 @@ TYPED_TEST(JaggedShapeTest, IsBroadcastableTo) {
     ASSERT_OK_AND_ASSIGN(auto shape2, Shape::FromEdges({edge1, edge2, edge3}));
     EXPECT_TRUE(shape1->IsBroadcastableTo(*shape2));
     EXPECT_TRUE(shape2->IsBroadcastableTo(*shape1));
+    EXPECT_TRUE(shape1->IsBroadcastableTo(*shape1));
   }
   {
     // Different shapes -> False.
@@ -817,8 +849,8 @@ void BM_JaggedShape_FromSplitPointEdges(benchmark::State& state) {
     edges.push_back(GetSplitPointsEdge<ShapeHelper>(std::pow(num_children, i),
                                                     num_children));
   }
-  benchmark::DoNotOptimize(edges);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(edges);
     auto shape = ShapeFromEdgesBM<ShapeHelper>(edges, state);
     benchmark::DoNotOptimize(shape);
   }
@@ -847,8 +879,8 @@ void BM_JaggedShape_FromMappingEdges(benchmark::State& state) {
     edges.push_back(
         GetMappingEdge<ShapeHelper>(std::pow(num_children, i), num_children));
   }
-  benchmark::DoNotOptimize(edges);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(edges);
     auto shape = ShapeFromEdgesBM<ShapeHelper>(edges, state);
     benchmark::DoNotOptimize(shape);
   }
@@ -868,28 +900,28 @@ BENCHMARK(BM_JaggedShape_FromMappingEdges<JaggedDenseArrayShapeHelper>)
     ->ArgPair(4, 100);
 
 template <typename ShapeHelper>
-void BM_JaggedShape_IsProbablyEquivalentTo(benchmark::State& state) {
+void BM_JaggedShape_FastEquivalenceCheck(benchmark::State& state) {
   const int rank = state.range(0);
   const int num_children = state.range(1);
   // Avoid creating the edges from the same underlying buffers which is
   // optimized.
   auto shape1 = GetShape<ShapeHelper>(rank, num_children);
   auto shape2 = GetShape<ShapeHelper>(rank, num_children);
-  benchmark::DoNotOptimize(shape1);
-  benchmark::DoNotOptimize(shape2);
   for (auto _ : state) {
-    auto eq = shape1->IsProbablyEquivalentTo(*shape2);
+    benchmark::DoNotOptimize(shape1);
+    benchmark::DoNotOptimize(shape2);
+    auto eq = shape1->FastEquivalenceCheck(*shape2);
     benchmark::DoNotOptimize(eq);
   }
 }
 
-BENCHMARK(BM_JaggedShape_IsProbablyEquivalentTo<JaggedArrayShapeHelper>)
+BENCHMARK(BM_JaggedShape_FastEquivalenceCheck<JaggedArrayShapeHelper>)
     // Rank, num children.
     ->ArgPair(1, 1)
     ->ArgPair(100, 1)
     ->ArgPair(1, 100)
     ->ArgPair(4, 100);
-BENCHMARK(BM_JaggedShape_IsProbablyEquivalentTo<JaggedDenseArrayShapeHelper>)
+BENCHMARK(BM_JaggedShape_FastEquivalenceCheck<JaggedDenseArrayShapeHelper>)
     // Rank, num children.
     ->ArgPair(1, 1)
     ->ArgPair(100, 1)
@@ -904,9 +936,9 @@ void BM_JaggedShape_IsEquivalentTo(benchmark::State& state) {
   // optimized.
   auto shape1 = GetShape<ShapeHelper>(rank, num_children);
   auto shape2 = GetShape<ShapeHelper>(rank, num_children);
-  benchmark::DoNotOptimize(shape1);
-  benchmark::DoNotOptimize(shape2);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(shape1);
+    benchmark::DoNotOptimize(shape2);
     auto eq = shape1->IsEquivalentTo(*shape2);
     benchmark::DoNotOptimize(eq);
   }
@@ -926,16 +958,39 @@ BENCHMARK(BM_JaggedShape_IsEquivalentTo<JaggedDenseArrayShapeHelper>)
     ->ArgPair(4, 100);
 
 template <typename ShapeHelper>
+void BM_JaggedShape_IsEquivalentTo_SameObj(benchmark::State& state) {
+  const int rank = state.range(0);
+  const int num_children = state.range(1);
+  auto shape1 = GetShape<ShapeHelper>(rank, num_children);
+  auto shape2 = shape1;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(shape1);
+    benchmark::DoNotOptimize(shape2);
+    auto eq = shape1->IsEquivalentTo(*shape2);
+    benchmark::DoNotOptimize(eq);
+  }
+}
+
+BENCHMARK(BM_JaggedShape_IsEquivalentTo_SameObj<JaggedArrayShapeHelper>)
+    // Rank, num children.
+    ->ArgPair(1, 1)
+    ->ArgPair(4, 100);
+BENCHMARK(BM_JaggedShape_IsEquivalentTo_SameObj<JaggedDenseArrayShapeHelper>)
+    // Rank, num children.
+    ->ArgPair(1, 1)
+    ->ArgPair(4, 100);
+
+template <typename ShapeHelper>
 void BM_JaggedShape_FlattenDims(benchmark::State& state) {
   const int rank = state.range(0);
   const int num_children = state.range(1);
   auto shape = GetShape<ShapeHelper>(rank, num_children);
   int from = state.range(2);
   int to = state.range(3);
-  benchmark::DoNotOptimize(shape);
-  benchmark::DoNotOptimize(from);
-  benchmark::DoNotOptimize(to);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(shape);
+    benchmark::DoNotOptimize(from);
+    benchmark::DoNotOptimize(to);
     auto flattened_shape = shape->FlattenDims(from, to);
     benchmark::DoNotOptimize(flattened_shape);
   }
@@ -981,9 +1036,9 @@ void BM_JaggedShape_IsBroadcastableTo(benchmark::State& state) {
   // optimized.
   auto shape1 = GetShape<ShapeHelper>(rank_1, num_children);
   auto shape2 = GetShape<ShapeHelper>(rank_2, num_children);
-  benchmark::DoNotOptimize(shape1);
-  benchmark::DoNotOptimize(shape2);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(shape1);
+    benchmark::DoNotOptimize(shape2);
     auto is_broadcastable = shape1->IsBroadcastableTo(*shape2);
     benchmark::DoNotOptimize(is_broadcastable);
   }
@@ -1001,13 +1056,38 @@ BENCHMARK(BM_JaggedShape_IsBroadcastableTo<JaggedDenseArrayShapeHelper>)
     ->Args({4, 5, 5});
 
 template <typename ShapeHelper>
+void BM_JaggedShape_IsBroadcastableTo_SameObj(benchmark::State& state) {
+  const int rank_1 = state.range(0);
+  const int num_children = state.range(1);
+  auto shape1 = GetShape<ShapeHelper>(rank_1, num_children);
+  auto shape2 = shape1;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(shape1);
+    benchmark::DoNotOptimize(shape2);
+    auto is_broadcastable = shape1->IsBroadcastableTo(*shape2);
+    benchmark::DoNotOptimize(is_broadcastable);
+  }
+}
+
+BENCHMARK(BM_JaggedShape_IsBroadcastableTo_SameObj<JaggedArrayShapeHelper>)
+    // Rank shape_1, num children.
+    ->Args({1, 1})
+    ->Args({1, 5})
+    ->Args({4, 5});
+BENCHMARK(BM_JaggedShape_IsBroadcastableTo_SameObj<JaggedDenseArrayShapeHelper>)
+    // Rank shape_1, num children.
+    ->Args({1, 1})
+    ->Args({1, 5})
+    ->Args({4, 5});
+
+template <typename ShapeHelper>
 void BM_JaggedShape_Copying(benchmark::State& state) {
   // Tests that the result of `FromEdges` is fast to copy.
   const int rank = state.range(0);
   const int num_children = state.range(1);
   auto shape = GetShape<ShapeHelper>(rank, num_children);
-  benchmark::DoNotOptimize(shape);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(shape);
     auto shape_copy = shape;
     benchmark::DoNotOptimize(shape_copy);
   }
@@ -1031,8 +1111,8 @@ void BM_JaggedShape_Repr(benchmark::State& state) {
   const int rank = state.range(0);
   const int num_children = state.range(1);
   auto shape = GetShape<ShapeHelper>(rank, num_children);
-  benchmark::DoNotOptimize(shape);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(shape);
     auto repr = Repr(*shape);
     benchmark::DoNotOptimize(repr);
   }

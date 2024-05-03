@@ -4,11 +4,18 @@ common --enable_platform_specific_config
 # Enable Bzlmod for every Bazel command.
 common --enable_bzlmod
 
+
+# The shared-library compilation is necessary for the Arolla Python API,
+# so we enable it by default.
+#
+# The AROLLA_SHARED_COMPILATION macro is described in //arolla/util/api.h.
+build --cxxopt=-DAROLLA_SHARED_COMPILATION
+
 # Enable modern C++ features
-build:linux --cxxopt=-std=gnu++17
-build:linux --host_cxxopt=-std=gnu++17
-build:macos --cxxopt=-std=gnu++17
-build:macos --host_cxxopt=-std=gnu++17
+build:linux --cxxopt=-std=gnu++20
+build:linux --host_cxxopt=-std=gnu++20
+build:macos --cxxopt=-std=gnu++20
+build:macos --host_cxxopt=-std=gnu++20
 
 # Set the minimum compatible version of macOS (consider consulting
 # https://endoflife.date/macos for versions of macOS that are currently

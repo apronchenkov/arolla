@@ -14,11 +14,10 @@
 
 # utilities for codegeneration
 
-load("@rules_python//python:py_binary.bzl", "py_binary")
-load("@rules_python//python:py_test.bzl", "py_test")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 load(
     "//arolla/codegen:utils.bzl",
     "EVAL_PYTHON_FUNCTION_CALL_DEPS",
@@ -118,7 +117,6 @@ bzl_library(
     srcs = ["utils.bzl"],
     deps = [
         "@bazel_skylib//lib:structs",
-        "@rules_python//python:py_binary_bzl",
     ],
 )
 

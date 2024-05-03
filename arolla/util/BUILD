@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("//arolla/util/testing:testing.bzl", "benchmark_smoke_test")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
@@ -39,6 +41,7 @@ cc_library(
     ],
     hdrs = [
         "algorithms.h",
+        "api.h",
         "binary_search.h",
         "bits.h",
         "bytes.h",
@@ -70,6 +73,7 @@ cc_library(
         "unit.h",
         "view_types.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/util:status_backport",
         "@com_google_absl//absl/base:core_headers",
@@ -96,6 +100,7 @@ cc_library(
 
 cc_library(
     name = "status_backport",
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     textual_hdrs = [
         "status_macros_backport.h",
     ],
@@ -133,7 +138,13 @@ cc_binary(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
+)
+
+benchmark_smoke_test(
+    name = "benchmarks_smoke_test",
+    binary = ":benchmarks",
 )
 
 cc_test(
@@ -163,7 +174,6 @@ cc_test(
     deps = [
         ":util",
         "//arolla/util/testing",
-        "@com_google_absl//absl/strings:cord",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_googletest//:gtest_main",
     ],
@@ -195,6 +205,7 @@ cc_binary(
     deps = [
         ":util",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -216,6 +227,7 @@ cc_binary(
     deps = [
         ":util",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -303,7 +315,6 @@ cc_test(
         ":util",
         "//arolla/memory",
         "//arolla/util/testing",
-        "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
@@ -380,6 +391,7 @@ cc_test(
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:cord",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_googletest//:gtest_main",
     ],
@@ -415,6 +427,7 @@ cc_binary(
     deps = [
         ":util",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -438,6 +451,7 @@ cc_binary(
     deps = [
         ":util",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 

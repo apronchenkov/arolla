@@ -25,10 +25,11 @@ using ::arolla::WildcardInputLoader;
 }  // namespace
 
 namespace my_namespace_GetLoaderFilteredByFnImplNamespace {
-namespace {
 
 using Input = int;
 
+namespace {
+namespace {
 // Special value to mark not requested slot.
 constexpr size_t kSkippedOffset = std::numeric_limits<size_t>::max();
 
@@ -107,18 +108,25 @@ class AccessorsLoader final : public ::arolla::StaticInputLoader<Input> {
     return BoundInputLoader<Input>(fn);
   }
 };
+}  // namespace
 
 // Returns ChainInputLoader: Accessors, Single- and Multi-value proto.
 const InputLoader<Input>*
 GetCollectionInputLoader() {
   static const InputLoader<Input>* impl = ChainInputLoader<Input>::Build(
           // Not using make_unique to avoid binary size blowup.
-          ::arolla::InputLoaderPtr<Input>(static_cast<const InputLoader<Input>*>(
+          ::arolla::InputLoaderPtr<Input>(static_cast<InputLoader<Input>*>(
             new AccessorsLoader()))
       )->release();
   return impl;
 }
+}  // namespace
 
+
+namespace {
+
+constexpr auto GetAllShardsInputLoader =
+    ::my_namespace_GetLoaderFilteredByFnImplNamespace::GetCollectionInputLoader;
 
 }  // namespace
 }  // namespace my_namespace_GetLoaderFilteredByFnImplNamespace
@@ -127,7 +135,8 @@ namespace my_namespace {
 
 ::arolla::InputLoaderPtr<int>
 GetLoaderFilteredByFn() {
-  return MakeNotOwningInputLoader(::my_namespace_GetLoaderFilteredByFnImplNamespace::GetCollectionInputLoader());
+  return MakeNotOwningInputLoader(
+      ::my_namespace_GetLoaderFilteredByFnImplNamespace::GetAllShardsInputLoader());
 }
 
 }  // namespace my_namespace

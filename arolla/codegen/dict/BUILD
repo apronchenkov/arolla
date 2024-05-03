@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# literal and type extensions for python/arolla/expr/codegen
+# literal and type extensions for py/arolla/expr/codegen
 
 package(default_visibility = ["//visibility:public"])
 
@@ -21,6 +21,7 @@ licenses(["notice"])
 cc_library(
     name = "dict",
     srcs = ["dict_codegen_literal.cc"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/codegen/expr",
         "//arolla/qtype",

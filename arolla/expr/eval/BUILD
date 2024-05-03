@@ -54,6 +54,7 @@ cc_library(
         "side_output.h",
         "thread_safe_model_executor.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/algorithm",
         "//arolla/dense_array",
@@ -93,6 +94,7 @@ cc_library(
         "dynamic_compiled_expr.h",
         "test_utils.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         ":eval",
         "//arolla/expr",
@@ -233,6 +235,7 @@ cc_test(
         "//arolla/util",
         "//arolla/util:status_backport",
         "//arolla/util/testing",
+        "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
@@ -549,5 +552,6 @@ cc_binary(
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )

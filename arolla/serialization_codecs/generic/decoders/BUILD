@@ -19,7 +19,7 @@ licenses(["notice"])
 # NOTE: Consider splitting this target to subtarget to provide
 # better control on what codecs get included to the binary.
 
-# See tests in python/arolla/s11n/testing
+# See tests in py/arolla/s11n/testing
 cc_library(
     name = "decoders",
     srcs = [
@@ -28,6 +28,7 @@ cc_library(
         "scalar_decoder.cc",
         "tuple_decoder.cc",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/expr",
         "//arolla/expr/operator_loader",

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_python//python:defs.bzl", "py_binary")
 
 package(
     default_testonly = 1,
@@ -33,9 +33,10 @@ cc_library(
         "repr_token_eq.h",
         "status_matchers_backport.h",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     visibility = [
         "//arolla:internal",
-        "//python/arolla/expr/codegen/testing:__subpackages__",
+        "//py/arolla/expr/codegen/testing:__subpackages__",
     ],
     deps = [
         "//arolla/util",
@@ -44,7 +45,7 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
-        "@com_google_protobuf//:protoc",
+        "@com_google_protobuf//:protobuf",
     ],
 )
 

@@ -16,7 +16,7 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
-# See tests in python/arolla/s11n/testing
+# See tests in py/arolla/s11n/testing
 cc_library(
     name = "encoders",
     srcs = [
@@ -25,6 +25,7 @@ cc_library(
         "scalar_encoder.cc",
         "tuple_encoder.cc",
     ],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/expr",
         "//arolla/expr/operator_loader",
@@ -46,6 +47,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/strings:string_view",
     ],
     alwayslink = True,
 )
