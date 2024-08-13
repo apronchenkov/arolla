@@ -40,6 +40,10 @@ cc_shared_library(
         ":arolla_so",
         ":base_so",
     ],
+    exports_filter = [
+        "//arolla/expr/operators:__subpackages__",
+        "//arolla/qexpr/operators:__subpackages__",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//arolla/expr/operators/all",
