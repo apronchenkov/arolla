@@ -28,6 +28,7 @@
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -46,8 +47,8 @@ namespace arolla {
 template <class Input>
 class BoundInputLoader {
  public:
-  using FnType =
-      std::function<absl::Status(const Input&, FramePtr, RawBufferFactory*)>;
+  using FnType = absl::AnyInvocable<absl::Status(const Input&, FramePtr,
+                                                 RawBufferFactory*) const>;
   explicit BoundInputLoader(FnType&& fn) : fn_(std::forward<FnType>(fn)) {}
 
   absl::Status operator()(
@@ -172,6 +173,7 @@ class StaticInputLoader : public InputLoader<T> {
     std::sort(types_in_order_.begin(), types_in_order_.end());
   }
 
+  // Return all available types in the order they were specified.
   absl::Span<const std::pair<std::string, QTypePtr>> types_in_order() const {
     return types_in_order_;
   }
@@ -456,11 +458,11 @@ class ChainInputLoader final : public InputLoader<Input> {
     }
     // Avoid indirection in case only one loader is bound.
     if (bound_loaders.size() == 1) {
-      return bound_loaders[0];
+      return std::move(bound_loaders[0]);
     }
     if (invoke_bound_loaders_fn_) {
       return BoundInputLoader<Input>(
-          absl::bind_front(invoke_bound_loaders_fn_, bound_loaders));
+          absl::bind_front(invoke_bound_loaders_fn_, std::move(bound_loaders)));
     }
     return BoundInputLoader<Input>(
         [bound_loaders(std::move(bound_loaders))](

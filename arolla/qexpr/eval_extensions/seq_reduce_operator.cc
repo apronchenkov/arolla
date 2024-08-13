@@ -206,12 +206,17 @@ absl::StatusOr<ExprAttributes> PackedSeqReduceOperator::InferAttributes(
   return SeqReduceOperator::Make()->InferAttributes(new_inputs);
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterQExprOperators, seq_reduce_operator_eval_extensions, [] {
-      ::arolla::expr::eval_internal::CompilerExtensionRegistry::GetInstance()
-          .RegisterNodeTransformationFn(SeqReduceOperatorTransformation);
-      ::arolla::expr::eval_internal::CompilerExtensionRegistry::GetInstance()
-          .RegisterCompileOperatorFn(CompilePackedSeqReduceOperator);
-    });
+AROLLA_INITIALIZER(
+        .reverse_deps =
+            {
+                ::arolla::initializer_dep::kOperators,
+                ::arolla::initializer_dep::kQExprOperators,
+            },
+        .init_fn = [] {
+          CompilerExtensionRegistry::GetInstance().RegisterNodeTransformationFn(
+              SeqReduceOperatorTransformation);
+          CompilerExtensionRegistry::GetInstance().RegisterCompileOperatorFn(
+              CompilePackedSeqReduceOperator);
+        })
 
 }  // namespace arolla::expr::eval_internal

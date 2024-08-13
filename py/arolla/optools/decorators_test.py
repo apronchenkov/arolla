@@ -18,6 +18,7 @@ import warnings
 from absl.testing import absltest
 from arolla.abc import abc as arolla_abc
 from arolla.expr import expr as arolla_expr
+from arolla.operators import operators_clib as _
 from arolla.optools import optools as arolla_optools
 from arolla.testing import testing as arolla_testing
 from arolla.types import types as arolla_types
@@ -317,9 +318,9 @@ class DecoratorsTest(absltest.TestCase):
         _ = core_presence_and(arolla_types.tuple_(), arolla_types.tuple_())
     with self.subTest('math_add'):
       with self.assertRaisesRegex(
-          ValueError, re.escape('no common type for `x:INT32` and `y:FLOAT32`')
+          ValueError, re.escape('`y` needs to be a numeric type, got BYTES')
       ):
-        _ = math_add(arolla_types.int32(0), arolla_types.float32(0.0))
+        _ = math_add(arolla_types.int32(0), arolla_types.bytes_(b'foo'))
 
   def test_as_lambda_operator_signature_as_qvalue_regression(self):
     @arolla_optools.as_lambda_operator(
@@ -364,8 +365,8 @@ class DecoratorsTest(absltest.TestCase):
     def op2(x):
       return x
 
-    self.assertIsInstance(op1, arolla_types.RegisteredOperator)
-    self.assertIsInstance(op2, arolla_types.RegisteredOperator)
+    self.assertIsInstance(op1, arolla_abc.RegisteredOperator)
+    self.assertIsInstance(op2, arolla_abc.RegisteredOperator)
     self.assertEqual(op1.display_name, 'decorator_test.add_to_registry.op1')
     self.assertEqual(op2.display_name, 'decorator_test.add_to_registry.op2')
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//visibility:private"])
 
 licenses(["notice"])
 
@@ -21,13 +21,14 @@ cc_library(
     srcs = ["regex.cc"],
     hdrs = ["regex.h"],
     local_defines = ["AROLLA_IMPLEMENTATION"],
+    visibility = ["//visibility:public"],
     deps = [
         "//arolla/qtype",
         "//arolla/util",
-        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:string_view",
         "@com_googlesource_code_re2//:re2",
     ],
@@ -38,9 +39,10 @@ cc_test(
     srcs = ["regex_test.cc"],
     deps = [
         ":strings",
-        "//arolla/util/testing",
+        "//arolla/qtype",
+        "//arolla/util",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
-        "@com_googlesource_code_re2//:re2",
     ],
 )

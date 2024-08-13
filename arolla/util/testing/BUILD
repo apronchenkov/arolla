@@ -24,29 +24,43 @@ licenses(["notice"])
 
 cc_library(
     name = "testing",
-    testonly = 1,
-    srcs = [
-        "status_matchers_backport.cc",
-    ],
+    testonly = True,
     hdrs = [
         "equals_proto.h",
         "repr_token_eq.h",
-        "status_matchers_backport.h",
     ],
     local_defines = ["AROLLA_IMPLEMENTATION"],
     visibility = [
-        "//arolla:internal",
-        "//py/arolla/expr/codegen/testing:__subpackages__",
+        "//visibility:public",
     ],
     deps = [
         "//arolla/util",
-        "//arolla/util:status_backport",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@com_google_protobuf//:protobuf",
     ],
+)
+
+cc_test(
+    name = "equals_proto_test",
+    srcs = ["equals_proto_test.cc"],
+    deps = [
+        ":test_cc_proto",
+        ":testing",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+proto_library(
+    name = "test_proto",
+    testonly = True,
+    srcs = ["test.proto"],
+)
+
+cc_proto_library(
+    name = "test_cc_proto",
+    testonly = True,
+    deps = [":test_proto"],
 )
 
 py_binary(

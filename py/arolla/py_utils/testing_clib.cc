@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "py/arolla/py_utils/py_object_as_status_payload.h"
 #include "py/arolla/py_utils/py_utils.h"
@@ -106,6 +107,8 @@ PYBIND11_MODULE(testing_clib, m) {
     }
     return py::reinterpret_steal<py::object>(result.release());
   });
+
+  m.def("can_call_check_signal", [] { return PyErr_CanCallCheckSignal(); });
 
   m.def("lookup_type_member", [](py::type type, py::str attr) -> py::object {
     auto result = PyType_LookupMemberOrNull(

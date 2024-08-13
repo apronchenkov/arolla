@@ -17,51 +17,56 @@
 #include <string>
 #include <tuple>
 
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/no_destructor.h"
 #include "absl/status/status.h"
-#include "arolla/util/indestructible.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 namespace {
 
-using ::arolla::testing::IsOk;
+struct Buffer {
+  std::string result;
+};
 
-std::string& GetBuffer() {
-  static Indestructible<std::string> result;
+Buffer& buffer() {
+  static absl::NoDestructor<Buffer> result;
   return *result;
 }
 
-AROLLA_REGISTER_INITIALIZER(kHighest, Foo, [] { GetBuffer() += "Hello"; })
+AROLLA_INITIALIZER(.name = "Foo", .init_fn = [] { buffer().result += "Hello"; })
 
-AROLLA_REGISTER_INITIALIZER(kLowest, Bar, []() -> absl::Status {
-  GetBuffer() += "World";
-  return absl::OkStatus();
-})
+AROLLA_INITIALIZER(
+        .name = "Bar", .deps = {"Foo"}, .init_fn = [] {
+          buffer().result += "World";
+          return absl::OkStatus();
+        })
 
-AROLLA_REGISTER_ANONYMOUS_INITIALIZER(kLowest, [] { GetBuffer() += "!"; })
-
-AROLLA_REGISTER_INITIALIZER(kLowest, Baz, []() -> absl::Status {
-  // Expect a statement with ',' to trigger no compilation error.
-  std::tuple<int, int>();
-  return absl::OkStatus();
-})
+AROLLA_INITIALIZER(.deps = {"Bar"}, .init_fn = [] { buffer().result += "!"; })
 
 // There is only one test for this subsystem because only the first
 // InitArolla() call makes the difference per process life-time.
 
 TEST(InitArollaTest, Complex) {
   {  // Before init.
-    EXPECT_EQ(GetBuffer(), "");
+    EXPECT_EQ(buffer().result, "");
   }
   {  // After init.
-    ASSERT_THAT(InitArolla(), IsOk());
-    EXPECT_EQ(GetBuffer(), "HelloWorld!");
+    InitArolla();
+    EXPECT_EQ(buffer().result, "HelloWorld!");
+    CheckInitArolla();  // no crash
   }
   {  // The following calls do nothing.
-    ASSERT_THAT(InitArolla(), IsOk());
-    EXPECT_EQ(GetBuffer(), "HelloWorld!");
+    InitArolla();
+    EXPECT_EQ(buffer().result, "HelloWorld!");
+    CheckInitArolla();  // no crash
+  }
+  {  // Manually trigger the secondary initialization.
+    static constexpr arolla::init_arolla_internal::Initializer
+        secondary_initializer = {.init_fn = [] { buffer().result += "!!"; }};
+    [[maybe_unused]] static const arolla::init_arolla_internal::Registration
+        registration(secondary_initializer);
+    arolla::init_arolla_internal::InitArollaSecondary();
+    EXPECT_EQ(buffer().result, "HelloWorld!!!");
   }
 }
 

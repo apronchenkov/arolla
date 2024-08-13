@@ -15,6 +15,7 @@
 #ifndef AROLLA_QEXPR_OPERATORS_H_
 #define AROLLA_QEXPR_OPERATORS_H_
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -60,11 +61,12 @@ class QExprOperator {
   virtual ~QExprOperator() = default;
 
   // Constructs a QExprOperator with the provided signature.
-  explicit QExprOperator(std::string name, const QExprOperatorSignature* qtype)
-      : name_(std::move(name)), qtype_(qtype) {}
+  explicit QExprOperator(std::string name,
+                         const QExprOperatorSignature* signature)
+      : name_(std::move(name)), signature_(signature) {}
 
-  // Gets this operator's QType.
-  const QExprOperatorSignature* GetQType() const { return qtype_; }
+  // Returns the operator's signature.
+  const QExprOperatorSignature* signature() const { return signature_; }
 
   // Returns the operator's name.
   absl::string_view name() const { return name_; }
@@ -82,7 +84,7 @@ class QExprOperator {
       absl::Span<const TypedSlot> input_slots, TypedSlot output_slot) const = 0;
 
   std::string name_;
-  const QExprOperatorSignature* qtype_;
+  const QExprOperatorSignature* signature_;
 };
 
 // TODO: Remove once all the usages are migrated.
@@ -124,6 +126,12 @@ using OperatorPtr = std::shared_ptr<const QExprOperator>;
 // support dynamic operator types. For example, Apply(fn, arg0, arg1, ...)
 // where 'fn' has input argument types (arg0, arg1, ...) matching those passed
 // to Apply.
+//
+// In order to support codegen OperatorFamily also should have `operator()`
+// that evaluates the operator directly.
+// Add `using returns_status_or = std::true_type` if it returns StatusOr.
+// Add `using accepts_context = std::true_type` if it requires EvaluationContext
+// as a first argument.
 class OperatorFamily {
  public:
   virtual ~OperatorFamily() = default;
@@ -171,11 +179,35 @@ class OperatorRegistry final : public OperatorDirectory {
   absl::Status RegisterOperatorFamily(
       absl::string_view name, std::unique_ptr<OperatorFamily> operation);
 
-  // Registers an operator with its (namespace, name). Several operators can
-  // be registered under the same (namespace, name), provided that their input
-  // types are different. However it is not allowed to mix OperatorFamily and
-  // single operators with the same name.
-  absl::Status RegisterOperator(OperatorPtr op);
+  // Registers an operator.
+  //
+  // Several operators can be registered under the same name, provided that
+  // their input types are different. However, it is not allowed to mix
+  // OperatorFamily and single operators with the same name.
+  //
+  // NOTE: There is an edge case where an operator may be registered twice
+  // during the initialization: once as part of a bundle and again individually.
+  // The `overwrite_priority` parameter helps to gracefully handle this
+  // situation.
+  //
+  // An operator can be registered multiple times with different
+  // `overwrite_priority`es. Registering an operator repeatedly with the same
+  // priority is an error. `OperatorRegistry::LookupOperator()` and
+  // `OperatorFamily::GetOperator()` always return the version with the
+  // numerically highest priority.
+  //
+  // RATIONALE: Technically, overwriting an operator repeatedly is an error.
+  // However, we have received reports from a few clients that this happened for
+  // them in practice when they manually configured the Arolla library to
+  // include only a limited set of operators, while other parts of
+  // the application independently included the full version.
+  //
+  // Given the rarity and specificity of this situation, we believe that
+  // designing a complex solution is not justified at the moment.
+  //
+  // If you plan to use the `overwrite_level`, please contact the Arolla
+  // team first.
+  absl::Status RegisterOperator(OperatorPtr op, size_t overwrite_priority = 0);
 
   // Returns list of all registered operators.
   std::vector<std::string> ListRegisteredOperators();
@@ -215,13 +247,6 @@ int RegisterOperatorFamily(absl::string_view name) {
     LOG(FATAL) << status;
   }
   return 57;
-}
-
-// FIXME: Remove this alias as soon as possible. Some protected
-// code still uses the old name.
-inline const QExprOperatorSignature* GetOperatorQType(
-    absl::Span<const QTypePtr> inputs, QTypePtr output) {
-  return QExprOperatorSignature::Get(inputs, output);
 }
 
 }  // namespace arolla

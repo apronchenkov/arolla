@@ -160,12 +160,11 @@ class ExprTest(absltest.TestCase):
     with self.assertRaisesWithLiteralMatch(
         TypeError, "'arolla.abc.Expr' object is not iterable"
     ):
-      _ = iter(l_x)
-    with self.assertRaisesWithLiteralMatch(
-        TypeError, "'arolla.abc.Expr' object is not iterable"
-    ):
       for _ in l_x:
         self.fail()
+
+  def test_dir(self):
+    self.assertLessEqual({'fingerprint', 'equals', 'op'}, set(dir(l_x)))
 
 
 class LiteralTest(absltest.TestCase):

@@ -23,6 +23,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "arolla/qtype/base_types.h"
@@ -34,20 +35,18 @@
 #include "arolla/qtype/typed_value.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/testing/repr_token_eq.h"
-#include "arolla/util/testing/status_matchers_backport.h"
-#include "arolla/util/status_macros_backport.h"
 
 namespace arolla::testing {
 namespace {
 
-using ::arolla::testing::IsOkAndHolds;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::testing::ReprTokenEq;
-using ::arolla::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
+using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
-using ::testing::Eq;
 using ::testing::MatchesRegex;
 
 TEST(TupleQType, Empty) {
@@ -195,6 +194,46 @@ TEST(NamedTupleQType, Trivial) {
   }
 }
 
+TEST(NamedTupleQType, QValueFromFields) {
+  auto tuple_qtype = MakeTupleQType({GetQType<int>(), GetQType<float>()});
+  ASSERT_OK_AND_ASSIGN(auto qtype,
+                       MakeNamedTupleQType({"a", "b"}, tuple_qtype));
+  {  // From typed_refs.
+    ASSERT_OK_AND_ASSIGN(auto qvalue, TypedValue::FromFields(
+                                          qtype, {TypedRef::FromValue(2),
+                                                  TypedRef::FromValue(3.14f)}));
+    EXPECT_TRUE(IsNamedTupleQType(qvalue.GetType()));
+    EXPECT_EQ(qvalue.GetType(), qtype);
+    EXPECT_THAT(qvalue.GetField(0).As<int>(), IsOkAndHolds(2));
+    EXPECT_THAT(qvalue.GetField(1).As<float>(), IsOkAndHolds(3.14f));
+  }
+  {  // From typed_values.
+    ASSERT_OK_AND_ASSIGN(
+        auto qvalue,
+        TypedValue::FromFields(
+            qtype, {TypedValue::FromValue(2), TypedValue::FromValue(3.14f)}));
+    EXPECT_TRUE(IsNamedTupleQType(qvalue.GetType()));
+    EXPECT_EQ(qvalue.GetType(), qtype);
+    EXPECT_THAT(qvalue.GetField(0).As<int>(), IsOkAndHolds(2));
+    EXPECT_THAT(qvalue.GetField(1).As<float>(), IsOkAndHolds(3.14f));
+  }
+  {  // error: mismatched number of fields
+    EXPECT_THAT(
+        TypedValue::FromFields(qtype, {TypedValue::FromValue(2)}),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("expected 2 values, got 1; "
+                           "compound_qtype=namedtuple<a=INT32,b=FLOAT32>")));
+  }
+  {  // error: mismatched field qtype
+    EXPECT_THAT(
+        TypedValue::FromFields(qtype, {TypedValue::FromValue(2),
+                                       TypedValue::FromValue(3)}),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("expected fields[1]: FLOAT32, got INT32; "
+                           "compound_qtype=namedtuple<a=INT32,b=FLOAT32>")));
+  }
+}
+
 TEST(NamedTupleQType, BigTuple) {
   constexpr size_t kFieldCount = 100;
   QTypePtr field_qtype = GetQType<int32_t>();
@@ -214,36 +253,28 @@ TEST(NamedTupleQType, BigTuple) {
 TEST(NamedTupleQType, Errors) {
   EXPECT_THAT(
       MakeNamedTupleQType({"a", "b"}, nullptr).status(),
-      StatusIs(absl::StatusCode::kFailedPrecondition,
+      StatusIs(absl::StatusCode::kInvalidArgument,
                MatchesRegex(".*NamedTupleQType.*tuple.*found.*nullptr.*")));
   EXPECT_THAT(
       MakeNamedTupleQType({"a", "b"}, GetQType<int32_t>()).status(),
-      StatusIs(absl::StatusCode::kFailedPrecondition,
+      StatusIs(absl::StatusCode::kInvalidArgument,
                MatchesRegex(".*NamedTupleQType.*tuple.*found.*INT32.*")));
   auto tuple_qtype = MakeTupleQType(
       {GetQType<int32_t>(), GetQType<double>(), GetQType<Bytes>()});
   EXPECT_THAT(MakeNamedTupleQType({"a", "b"}, tuple_qtype).status(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        MatchesRegex(".*NamedTupleQType.*2 vs 3.*")));
   EXPECT_THAT(MakeNamedTupleQType({"a", "b", "a"}, tuple_qtype).status(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        MatchesRegex(".*NamedTupleQType.*a.*duplicate.*")));
 
   EXPECT_THAT(GetFieldNames(nullptr), IsEmpty());
   EXPECT_THAT(GetFieldNames(GetQType<int32_t>()), IsEmpty());
 }
 
-absl::StatusOr<TypedValue> CreateNamedTuple(
-    absl::Span<const std::string> field_names, TypedValue tuple) {
-  ASSIGN_OR_RETURN(auto namedtuple_qtype,
-                   MakeNamedTupleQType(field_names, tuple.GetType()));
-  return UnsafeDowncastDerivedQValue(namedtuple_qtype, tuple);
-}
-
 TEST(NamedTupleQType, GetFieldByNameAs) {
-  TypedValue tuple = MakeTupleFromFields(2.0f, 3);
-  ASSERT_OK_AND_ASSIGN(TypedValue named_tuple,
-                       CreateNamedTuple({"a", "b"}, tuple));
+  ASSERT_OK_AND_ASSIGN(auto named_tuple, MakeNamedTuple(
+      {"a", "b"}, {TypedRef::FromValue(2.0f), TypedRef::FromValue(3)}));
 
   EXPECT_THAT(GetFieldByNameAs<float>(named_tuple.AsRef(), "a"),
               IsOkAndHolds(2.0f));
@@ -256,6 +287,53 @@ TEST(NamedTupleQType, GetFieldByNameAs) {
           absl::StatusCode::kFailedPrecondition,
           HasSubstr("type mismatch: expected C++ type `float` (FLOAT32), got "
                     "`arolla::Bytes`; while accessing field \"a\"")));
+}
+
+TEST(NamedTupleQType, MakeNamedTuple) {
+  ASSERT_OK_AND_ASSIGN(auto named_tuple,
+                       MakeNamedTuple({"a", "b"}, {TypedRef::FromValue(2.0f),
+                                                   TypedRef::FromValue(3)}));
+  ASSERT_OK_AND_ASSIGN(
+      auto named_tuple_qtype,
+      MakeNamedTupleQType(
+          {"a", "b"}, MakeTupleQType({GetQType<float>(), GetQType<int>()})));
+  EXPECT_EQ(named_tuple.GetType(), named_tuple_qtype);
+  EXPECT_THAT(named_tuple.GenReprToken(),
+              ReprTokenEq("namedtuple<a=FLOAT32,b=INT32>{(2., 3)}"));
+  EXPECT_EQ(named_tuple.GetFieldCount(), 2);
+}
+
+TEST(NamedTupleQType, MakeEmptyNamedTuple) {
+  ASSERT_OK_AND_ASSIGN(auto named_tuple,
+                       MakeNamedTuple({}, absl::Span<const TypedRef>{}));
+  ASSERT_OK_AND_ASSIGN(auto named_tuple_qtype,
+                       MakeNamedTupleQType({}, MakeTupleQType({})));
+  EXPECT_EQ(named_tuple.GetType(), named_tuple_qtype);
+  EXPECT_THAT(named_tuple.GenReprToken(), ReprTokenEq("namedtuple<>{()}"));
+  EXPECT_EQ(named_tuple.GetFieldCount(), 0);
+}
+
+TEST(NamedTupleQtype, MakeNamedTuple_SameFromTypedValueAndTypedRef) {
+  ASSERT_OK_AND_ASSIGN(TypedValue named_tuple_from_values,
+                       MakeNamedTuple({"a", "b"}, {TypedValue::FromValue(2.0f),
+                                                   TypedValue::FromValue(3)}));
+
+  ASSERT_OK_AND_ASSIGN(auto named_tuple_from_refs,
+                       MakeNamedTuple({"a", "b"}, {TypedRef::FromValue(2.0f),
+                                                   TypedRef::FromValue(3)}));
+
+  EXPECT_EQ(named_tuple_from_values.GetFingerprint(),
+            named_tuple_from_refs.GetFingerprint());
+}
+
+TEST(NamedTupleQType, MakeNamedTuple_Error) {
+  EXPECT_THAT(
+      MakeNamedTuple({"a"},
+                     {TypedValue::FromValue(2.0f), TypedValue::FromValue(3)}),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          MatchesRegex(
+              "incorrect NamedTupleQType #field_names != #fields: 1 vs 2")));
 }
 
 }  // namespace

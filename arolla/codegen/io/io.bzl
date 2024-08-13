@@ -28,6 +28,7 @@ load(
 _CORE_DEPS = [
     "@com_google_absl//absl/memory",
     "@com_google_absl//absl/types:span",
+    "//arolla/codegen:qtype_utils",
     "//arolla/io",
     "//arolla/proto",
     "//arolla/qexpr",
@@ -46,10 +47,10 @@ def _join_dicts_of_lists(dicts):
     return {k: _list_sum([d.get(k, []) for d in dicts]) for k in keys}
 
 _PROTO_NO_ARRAY_DEPS = [
-    "//arolla/util",
+    "//arolla/codegen/io:multi_loader",
     "//arolla/memory",
     "//arolla/proto",
-    "//arolla/codegen/io:multi_loader",
+    "//arolla/util",
 ]
 
 _PROTO_NO_ARRAY_DEPS_PER_ARRAY = {key: _PROTO_NO_ARRAY_DEPS for key in ["", "DenseArray"]}
@@ -653,6 +654,9 @@ def input_loader(
     if array_type not in ["DenseArray", ""]:
         fail("Unknown array type", array_type)
     testonly = kwargs.get("testonly", 0)
+
+    # Generated IO code is producing a lot of debug information that is not really useful.
+    copts = list(kwargs.pop("copts", ["-g0"]))
     tool_deps = list(tool_deps)
     tool_data = list(tool_data)
 
@@ -722,6 +726,7 @@ def input_loader(
 
     native.cc_library(
         name = name,
+        copts = copts,
         srcs = [build_info.cc_file] + shard_cc_files,
         hdrs = [build_info.h_file],
         deps = dep_info.deps,
@@ -809,6 +814,9 @@ def input_loader_set(
       **kwargs: other arguments required for the native.cc_library
     """
     testonly = kwargs.get("testonly", 0)
+
+    # Generated IO code is producing a lot of debug information that is not really useful.
+    copts = list(kwargs.pop("copts", ["-g0"]))
     if type(loaders_spec) == type([]):
         loaders_spec = merge_dicts(*loaders_spec)
     deps_info = _collect_deps_info_from_specs(loaders_spec)
@@ -845,6 +853,7 @@ def input_loader_set(
 
     native.cc_library(
         name = name,
+        copts = copts,
         srcs = [build_info.cc_file] + shard_cc_files,
         hdrs = [build_info.h_file],
         deps = deps,
@@ -899,6 +908,9 @@ def wildcard_input_loaders(
         fail("Unknown array type", array_type)
     testonly = kwargs.get("testonly", 0)
 
+    # Generated IO code is producing a lot of debug information that is not really useful.
+    copts = list(kwargs.pop("copts", ["-g0"]))
+
     dep_info = _collect_deps_info_from_accessors_and_headers(
         loader_name2accessor.values(),
         array_type,
@@ -948,6 +960,7 @@ def wildcard_input_loaders(
 
     native.cc_library(
         name = name,
+        copts = copts,
         srcs = [build_info.cc_file],
         hdrs = [build_info.h_file],
         deps = dep_info.deps,
@@ -961,6 +974,7 @@ def slot_listener(
         accessors,
         hdrs,
         deps = [],
+        sharding = sharding_info(0),
         array_type = "DenseArray",
         tool_deps = [],
         tool_data = [],
@@ -987,6 +1001,8 @@ def slot_listener(
           Standard headers must include <>, e.g., <tuple>
       deps: list of required dependencies
           Typically contains at least dependency for the input class
+      sharding: sharding configuration. If `sharding.shard_count` is not 0, the implementation will
+          be split into several cc files. Useful in case of enormously big slot listeners.
       array_type: "DenseArray" or "" the type of vector to use
         for accessors returning arrays:
           "DenseArray" signal to use `::arolla::DenseArray<T>`.
@@ -998,6 +1014,9 @@ def slot_listener(
     if array_type not in ["DenseArray", ""]:
         fail("Unknown array type", array_type)
     testonly = kwargs.get("testonly", 0)
+
+    # Generated IO code is producing a lot of debug information that is not really useful.
+    copts = list(kwargs.pop("copts", ["-g0"]))
     tool_deps = list(tool_deps)
     tool_data = list(tool_data)
 
@@ -1047,12 +1066,15 @@ def slot_listener(
         ] + dep_info.tool_deps + tool_deps).to_list(),
         data = depset(dep_info.tool_data + tool_data).to_list(),
     )
+
+    shard_cc_files = _shard_cc_files(name, sharding.shard_count)
+
     native.genrule(
         name = build_info.gen_rule,
-        outs = [build_info.h_file, build_info.cc_file],
+        outs = [build_info.h_file, build_info.cc_file] + shard_cc_files,
         cmd = ("$(execpath :" + listener_binary + ") " +
                '--array_type="{array_type}" {build_info_flags} ' +
-               "--slot_listener_name={slot_listener_name} " +
+               "--slot_listener_name={slot_listener_name} --sharding_info={sharding_info} " +
                "{output_cls_flag} {hdrs} {hdr_getters} {accessor_flags}").format(
             array_type = array_type,
             build_info_flags = _build_info_flags(build_info),
@@ -1061,6 +1083,7 @@ def slot_listener(
             hdrs = " ".join(["--hdrs=%s" % h for h in dep_info.hdrs]),
             hdr_getters = " ".join(["--hdr_getters=\"%s\"" % h for h in hdr_getters]),
             accessor_flags = accessor_flags,
+            sharding_info = bash_escape(json.encode(sharding)),
         ),
         testonly = testonly,
         tools = [listener_binary] + dep_info.tool_data,
@@ -1068,7 +1091,8 @@ def slot_listener(
 
     native.cc_library(
         name = name,
-        srcs = [build_info.cc_file],
+        copts = copts,
+        srcs = [build_info.cc_file] + shard_cc_files,
         hdrs = [build_info.h_file],
         deps = dep_info.deps,
         **kwargs
@@ -1080,6 +1104,7 @@ def slot_listener_set(
         deps = [],
         tool_deps = [],
         tool_data = [],
+        max_shard_count = 0,
         **kwargs):
     """C++ library with a set of slot listeners and header file `{name}.h`
 
@@ -1103,13 +1128,23 @@ def slot_listener_set(
               for accessors returning arrays:
               "DenseArray" signal to use `::arolla::DenseArray<T>`.
               "" signal that array_types are forbidden
+          - sharding: sharding configuration. If `sharding.shard_count` is not 0, there will be
+              generated an additional function `{listener_name}_Shards` returning
+              `std::vector<std::unique_ptr<::arolla::SlotListener<T>>>`. The main function will
+              return `ChainSlotListener` merging all shards. Sharding is useful to speedup
+              compilation of enormously big slot listeners.
       deps: list of required dependencies
           Typically contains at least dependency for the output classes.
       tool_deps: additional deps for the codegen tool.
       tool_data: additional data deps for the codegen tool.
+      max_shard_count: maximum number of `sharding.shard_count` across the listeners_spec.
+          This number is required in the build time in order to configure genrule output files.
       **kwargs: other arguments required for the native.cc_library
     """
     testonly = kwargs.get("testonly", 0)
+
+    # Generated IO code is producing a lot of debug information that is not really useful.
+    copts = list(kwargs.pop("copts", ["-g0"]))
     if type(listeners_spec) == type([]):
         listeners_spec = merge_dicts(*listeners_spec)
     deps_info = _collect_deps_info_from_specs(listeners_spec)
@@ -1133,14 +1168,18 @@ def slot_listener_set(
         data = tool_data,
     )
 
+    shard_cc_files = _shard_cc_files(name, max_shard_count)
+
     build_info = _collect_build_info(name)
     native.genrule(
         name = build_info.gen_rule,
-        outs = [build_info.h_file, build_info.cc_file],
+        outs = [build_info.h_file, build_info.cc_file] + shard_cc_files,
         cmd = ("$(execpath :" + listeners_binary + ") " +
-               '{build_info_flags} --listeners_spec="{listeners}"').format(
+               '{build_info_flags} --listeners_spec="{listeners}" ' +
+               "--max_shard_count={max_shard_count}").format(
             build_info_flags = _build_info_flags(build_info),
             listeners = encode_call_python_function(listeners_spec),
+            max_shard_count = max_shard_count,
         ),
         testonly = testonly,
         tools = [listeners_binary] + tool_data,
@@ -1148,7 +1187,8 @@ def slot_listener_set(
 
     native.cc_library(
         name = name,
-        srcs = [build_info.cc_file],
+        copts = copts,
+        srcs = [build_info.cc_file] + shard_cc_files,
         hdrs = [build_info.h_file],
         deps = deps,
         **kwargs

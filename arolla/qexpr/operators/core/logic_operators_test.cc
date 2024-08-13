@@ -21,24 +21,25 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/array/qtype/types.h"
 #include "arolla/dense_array/dense_array.h"
 #include "arolla/dense_array/qtype/types.h"
 #include "arolla/memory/optional_value.h"
 #include "arolla/qexpr/operators.h"
+#include "arolla/qexpr/qexpr_operator_signature.h"
 #include "arolla/qtype/optional_qtype.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/text.h"
 #include "arolla/util/unit.h"
 
 namespace arolla {
 namespace {
 
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::Pointee;
@@ -55,7 +56,7 @@ const Oi64 optional_two = 2;
 const Oi64 missing;
 
 class LogicOperatorsTest : public ::testing::Test {
-  void SetUp() final { ASSERT_OK(InitArolla()); }
+  void SetUp() final { InitArolla(); }
 };
 
 TEST_F(LogicOperatorsTest, PresenceOr) {
@@ -126,8 +127,8 @@ TEST_F(LogicOperatorsTest, WhereOperatorFamily) {
                    GetOptionalQType<int64_t>()},
                   GetOptionalQType<int64_t>()),
               IsOkAndHolds(Pointee(Property(
-                  &QExprOperator::GetQType,
-                  Eq(GetOperatorQType(
+                  &QExprOperator::signature,
+                  Eq(QExprOperatorSignature::Get(
                       {GetQType<OptionalUnit>(), GetOptionalQType<int64_t>(),
                        GetOptionalQType<int64_t>()},
                       GetOptionalQType<int64_t>()))))));
@@ -139,8 +140,8 @@ TEST_F(LogicOperatorsTest, WhereOperatorFamily) {
                    GetDenseArrayQType<int64_t>()},
                   GetDenseArrayQType<int64_t>()),
               IsOkAndHolds(Pointee(Property(
-                  &QExprOperator::GetQType,
-                  Eq(GetOperatorQType(
+                  &QExprOperator::signature,
+                  Eq(QExprOperatorSignature::Get(
                       {GetQType<OptionalUnit>(), GetDenseArrayQType<int64_t>(),
                        GetDenseArrayQType<int64_t>()},
                       GetDenseArrayQType<int64_t>()))))));
@@ -152,25 +153,26 @@ TEST_F(LogicOperatorsTest, WhereOperatorFamily) {
                    GetArrayQType<int64_t>()},
                   GetArrayQType<int64_t>()),
               IsOkAndHolds(Pointee(Property(
-                  &QExprOperator::GetQType,
-                  Eq(GetOperatorQType(
+                  &QExprOperator::signature,
+                  Eq(QExprOperatorSignature::Get(
                       {GetQType<OptionalUnit>(), GetArrayQType<int64_t>(),
                        GetArrayQType<int64_t>()},
                       GetArrayQType<int64_t>()))))));
   // Cast (dense_array, scalar, scalar) -> (dense_array, dense_array,
   // dense_array).
   // This case is NOT optimized and we force to broadcast both arguments.
-  EXPECT_THAT(OperatorRegistry::GetInstance()->LookupOperator(
-                  "core.where",
-                  {GetDenseArrayQType<Unit>(), GetQType<int32_t>(),
-                   GetQType<int64_t>()},
-                  GetDenseArrayQType<int64_t>()),
-              IsOkAndHolds(Pointee(Property(
-                  &QExprOperator::GetQType,
-                  Eq(GetOperatorQType({GetDenseArrayQType<Unit>(),
-                                       GetDenseArrayQType<int64_t>(),
-                                       GetDenseArrayQType<int64_t>()},
-                                      GetDenseArrayQType<int64_t>()))))));
+  EXPECT_THAT(
+      OperatorRegistry::GetInstance()->LookupOperator(
+          "core.where",
+          {GetDenseArrayQType<Unit>(), GetQType<int32_t>(),
+           GetQType<int64_t>()},
+          GetDenseArrayQType<int64_t>()),
+      IsOkAndHolds(Pointee(Property(
+          &QExprOperator::signature,
+          Eq(QExprOperatorSignature::Get(
+              {GetDenseArrayQType<Unit>(), GetDenseArrayQType<int64_t>(),
+               GetDenseArrayQType<int64_t>()},
+              GetDenseArrayQType<int64_t>()))))));
   // Cast (array, scalar, scalar) -> (array, array, array).
   // This case is NOT optimized and we force to broadcast both arguments.
   EXPECT_THAT(
@@ -178,11 +180,12 @@ TEST_F(LogicOperatorsTest, WhereOperatorFamily) {
           "core.where",
           {GetArrayQType<Unit>(), GetQType<int32_t>(), GetQType<int64_t>()},
           GetArrayQType<int64_t>()),
-      IsOkAndHolds(Pointee(Property(
-          &QExprOperator::GetQType,
-          Eq(GetOperatorQType({GetArrayQType<Unit>(), GetArrayQType<int64_t>(),
-                               GetArrayQType<int64_t>()},
-                              GetArrayQType<int64_t>()))))));
+      IsOkAndHolds(
+          Pointee(Property(&QExprOperator::signature,
+                           Eq(QExprOperatorSignature::Get(
+                               {GetArrayQType<Unit>(), GetArrayQType<int64_t>(),
+                                GetArrayQType<int64_t>()},
+                               GetArrayQType<int64_t>()))))));
 }
 
 TEST_F(LogicOperatorsTest, LazyWhereFunctor) {
@@ -272,77 +275,6 @@ TEST_F(LogicOperatorsTest, LazyPresenceOrWithStatusFunctor) {
               StatusIs(absl::StatusCode::kInternal, HasSubstr("fake")));
   // function is not called
   EXPECT_THAT(PresenceOrOp{}(kPresent, error_fn), IsOkAndHolds(kPresent));
-}
-
-TEST_F(LogicOperatorsTest, PresenceOrVarargs) {
-  // OptionalUnit arguments.
-  EXPECT_THAT(
-      InvokeOperator<OptionalUnit>("core._presence_or", kPresent, kPresent),
-      IsOkAndHolds(kPresent));
-  EXPECT_THAT(
-      InvokeOperator<OptionalUnit>("core._presence_or", kPresent, kMissing),
-      IsOkAndHolds(kPresent));
-  EXPECT_THAT(
-      InvokeOperator<OptionalUnit>("core._presence_or", kMissing, kMissing),
-      IsOkAndHolds(kMissing));
-  EXPECT_THAT(InvokeOperator<OptionalUnit>("core._presence_or", kMissing,
-                                           kMissing, kMissing, kPresent),
-              IsOkAndHolds(kPresent));
-  EXPECT_THAT(InvokeOperator<OptionalUnit>("core._presence_or", kMissing,
-                                           kMissing, kMissing, kMissing),
-              IsOkAndHolds(kMissing));
-
-  // Non-unit arguments with default value (non-optional result).
-  EXPECT_THAT(InvokeOperator<int64_t>("core._presence_or", missing, one),
-              IsOkAndHolds(one));
-  EXPECT_THAT(InvokeOperator<int64_t>("core._presence_or", optional_two, one),
-              IsOkAndHolds(two));
-  EXPECT_THAT(InvokeOperator<int64_t>("core._presence_or", missing, missing,
-                                      optional_two, one),
-              IsOkAndHolds(two));
-  EXPECT_THAT(InvokeOperator<int64_t>("core._presence_or", missing, missing,
-                                      missing, one),
-              IsOkAndHolds(one));
-
-  // Non-unit arguments without default value (optional result).
-  EXPECT_THAT(
-      InvokeOperator<Oi64>("core._presence_or", optional_two, optional_one),
-      IsOkAndHolds(optional_two));
-  EXPECT_THAT(InvokeOperator<Oi64>("core._presence_or", optional_two, missing),
-              IsOkAndHolds(optional_two));
-  EXPECT_THAT(InvokeOperator<Oi64>("core._presence_or", missing, optional_two),
-              IsOkAndHolds(optional_two));
-  EXPECT_THAT(InvokeOperator<Oi64>("core._presence_or", missing, missing),
-              IsOkAndHolds(missing));
-  EXPECT_THAT(InvokeOperator<Oi64>("core._presence_or", missing, missing,
-                                   optional_two, missing, optional_one),
-              IsOkAndHolds(optional_two));
-  EXPECT_THAT(InvokeOperator<Oi64>("core._presence_or", missing, missing,
-                                   missing, missing, missing),
-              IsOkAndHolds(missing));
-
-  // Invalid arguments.
-  EXPECT_THAT(InvokeOperator<OptionalUnit>("core._presence_or", kMissing),
-              StatusIs(absl::StatusCode::kNotFound,
-                       HasSubstr("expected at least two arguments")));
-
-  EXPECT_THAT(
-      InvokeOperator<int64_t>("core._presence_or", one, two),
-      StatusIs(absl::StatusCode::kNotFound,
-               HasSubstr("expected all except last argument to be optional")));
-
-  EXPECT_THAT(
-      InvokeOperator<OptionalUnit>("core._presence_or", kMissing, two),
-      StatusIs(
-          absl::StatusCode::kNotFound,
-          HasSubstr("expected all arguments to have a common value type")));
-
-  EXPECT_THAT(
-      InvokeOperator<OptionalUnit>("core._presence_or", kMissing, Unit{}),
-      StatusIs(
-          absl::StatusCode::kNotFound,
-          HasSubstr(
-              "for Unit value type, expected final argument to be optional")));
 }
 
 TEST_F(LogicOperatorsTest, PresenceAndOr) {

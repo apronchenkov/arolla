@@ -28,7 +28,6 @@
 #include "arolla/qtype/optional_qtype.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/standard_type_properties/properties.h"
-#include "arolla/qtype/typed_value.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::expr {
@@ -348,9 +347,11 @@ absl::Status WhereOptimizations(PeepholeOptimizationPack& optimizations) {
              CallOpReference(
                  "core.presence_and",
                  {b, CallOpReference("core.presence_not._builtin", {c})})}));
-    ASSIGN_OR_RETURN(ExprNodePtr to, CallOpReference("core.where", {c, a, b}));
+    ASSIGN_OR_RETURN(ExprNodePtr to, CallOpReference("core.to_optional", {
+                     CallOpReference("core.where", {c, a, b})}));
     ASSIGN_OR_RETURN(optimizations.emplace_back(),
-                     PeepholeOptimization::CreatePatternOptimization(from, to));
+                     PeepholeOptimization::CreatePatternOptimization(
+                         from, to, {{"c", IsOptionalLikeNode}}));
   }
   {  // _presence_and_or(P.a, P.c, P.b & ~P.c)  -> where(P.c, P.a, P.b)
      // only for optionals and primitive types.

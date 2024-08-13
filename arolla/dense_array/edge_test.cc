@@ -20,14 +20,14 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/types/span.h"
 #include "arolla/dense_array/dense_array.h"
 #include "arolla/memory/buffer.h"
 #include "arolla/memory/raw_buffer_factory.h"
 #include "arolla/util/fingerprint.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
-using ::arolla::testing::StatusIs;
+using ::absl_testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 
@@ -43,6 +43,8 @@ TEST(DenseArrayEdgeTest, FromSplitPoints) {
   EXPECT_THAT(edge.edge_values().values, ElementsAre(0, 10, 20));
   EXPECT_EQ(edge.parent_size(), 2);
   EXPECT_EQ(edge.child_size(), 20);
+  EXPECT_EQ(edge.split_size(0), 10);
+  EXPECT_EQ(edge.split_size(1), 10);
 }
 
 TEST(DenseArrayEdgeTest, FromSplitPointsEmptyGroup) {
@@ -81,6 +83,28 @@ TEST(DenseArrayEdgeTest, FromSplitPointsInBadOrder) {
       DenseArrayEdge::FromSplitPoints({CreateBuffer<int64_t>({0, 40, 10})}),
       StatusIs(absl::StatusCode::kInvalidArgument,
                ::testing::HasSubstr("split points must be sorted")));
+}
+
+TEST(DenseArrayEdgeTest, UnsafeFromSplitPoints) {
+  DenseArray<int64_t> split_points(CreateDenseArray<int64_t>({0, 10, 20}));
+  auto edge = DenseArrayEdge::UnsafeFromSplitPoints(split_points);
+
+  EXPECT_THAT(edge.edge_type(), Eq(DenseArrayEdge::SPLIT_POINTS));
+  EXPECT_THAT(edge.edge_values().values, ElementsAre(0, 10, 20));
+  EXPECT_EQ(edge.parent_size(), 2);
+  EXPECT_EQ(edge.child_size(), 20);
+  EXPECT_EQ(edge.split_size(0), 10);
+  EXPECT_EQ(edge.split_size(1), 10);
+}
+
+TEST(ArrayEdgeTest, UnsafeFromSplitPointsEmptyGroup) {
+  DenseArray<int64_t> split_points(CreateDenseArray<int64_t>({0}));
+  auto edge = DenseArrayEdge::UnsafeFromSplitPoints(split_points);
+
+  EXPECT_THAT(edge.edge_type(), Eq(DenseArrayEdge::SPLIT_POINTS));
+  EXPECT_THAT(edge.edge_values(), ElementsAre(0));
+  EXPECT_EQ(edge.parent_size(), 0);
+  EXPECT_EQ(edge.child_size(), 0);
 }
 
 TEST(DenseArrayEdgeTest, FromMapping) {

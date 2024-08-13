@@ -1054,6 +1054,7 @@ cc_test(
     deps = [
         ":test_array_proto_slot_listener",
         ":test_proto_slot_listener",
+        ":test_sharded_slot_listener",
         ":test_sized_slot_listener",
         "//arolla/dense_array",
         "//arolla/dense_array/qtype",
@@ -1064,8 +1065,8 @@ cc_test(
         "//arolla/proto:test_extension_cc_proto",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -1078,7 +1079,7 @@ cc_test(
         "//arolla/io",
         "//arolla/memory",
         "//arolla/proto:test_cc_proto",
-        "//arolla/util/testing",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -1235,6 +1236,27 @@ slot_listener(
     array_type = "DenseArray",
     output_cls = "::testing_namespace::Root",
     slot_listener_name = "::my_namespace::GetProtoSizedSlotListener",
+    deps = [
+        "//arolla/proto:test_cc_proto",
+    ],
+)
+
+slot_listener(
+    name = "test_sharded_slot_listener",
+    testonly = 1,
+    hdrs = [
+        "arolla/proto/test.pb.h",
+    ],
+    accessors = [
+        protopath_accessor("inners[:]/a"),
+        protopath_accessor("count(inners[:])"),
+        protopath_accessor("inners[:]/inners2[:]/z"),
+        protopath_accessor("inners[:]/count(inners2[:])"),
+    ],
+    array_type = "DenseArray",
+    output_cls = "::testing_namespace::Root",
+    sharding = sharding_info(shard_count = 2),
+    slot_listener_name = "::my_namespace::GetShardedProtoSizedSlotListener",
     deps = [
         "//arolla/proto:test_cc_proto",
     ],
@@ -1524,10 +1546,22 @@ slot_listener_set(
     ),
 )
 
+slot_listener_set(
+    name = "test_sharded_slot_listener_set",
+    testonly = 1,
+    listeners_spec = call_python_function(
+        "arolla.codegen.io.testing.accessor_generators.gen_sharded_slot_listener_set_spec",
+        args = [],
+        deps = [":accessor_generators"],
+    ),
+    max_shard_count = 3,
+)
+
 cc_test(
     name = "test_slot_listener_set_test",
     srcs = ["test_slot_listener_set_test.cc"],
     deps = [
+        ":test_sharded_slot_listener_set",
         ":test_slot_listener_set",
         "//arolla/memory",
         "//arolla/qtype",
@@ -1609,7 +1643,6 @@ cc_test(
         "//arolla/memory",
         "//arolla/proto:test_cc_proto",
         "//arolla/qtype",
-        "//arolla/util:status_backport",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_googletest//:gtest_main",

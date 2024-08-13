@@ -77,7 +77,6 @@ operator_libs_plain = [
 all_operator_libs = (
     operator_libs_lifted_everywhere +
     operator_libs_plain + [
-        ":operator_presence_or_varargs",
         ":operator_fake_short_circuit_where_for_type_casting",
         ":operator_with_assertion",
     ]
@@ -139,7 +138,6 @@ cc_library(
 cc_library(
     name = "lib",
     srcs = [
-        "logic_operators.cc",
         "utility_operators.cc",
     ],
     hdrs = [
@@ -162,26 +160,12 @@ cc_library(
         "//arolla/qtype/standard_type_properties",
         "//arolla/util",
         "//arolla/util:status_backport",
-        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
     ],
-)
-
-# Internal presence_or implementation accepting scalar varargs. Arguments must
-# have common value type; all but final argument must be wrapped with
-# OptionalValue. If value type is `Unit`, then final argument must also be
-# wrapped with OptionalValue. Result type matches final argument type.
-operator_family(
-    name = "operator_presence_or_varargs",
-    hdrs = ["logic_operators.h"],
-    op_family_class = "::arolla::PresenceOrVarargsOperatorFamily",
-    op_family_name = "core._presence_or",
-    deps = [":lib"],
 )
 
 operator_family(
@@ -196,7 +180,7 @@ operator_family(
     name = "operator_with_assertion",
     hdrs = ["with_assertion_operator.h"],
     op_family_class = "::arolla::WithAssertionOperatorFamily",
-    op_family_name = "core.with_assertion",
+    op_family_name = "core._with_assertion",
     deps = [":lib"],
 )
 
@@ -641,8 +625,8 @@ cc_test(
         "//arolla/qexpr/testing",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
@@ -674,8 +658,8 @@ cc_test(
         ":lib",
         "//arolla/qexpr/testing",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )

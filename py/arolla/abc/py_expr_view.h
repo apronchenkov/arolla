@@ -16,13 +16,14 @@
 // ready to call the Python C API. You can find extra information in
 // documentation for PyGILState_Ensure() and PyGILState_Release().
 
-#ifndef PY_AROLLA_ABC_PY_EXPR_VIEW_H_
-#define PY_AROLLA_ABC_PY_EXPR_VIEW_H_
+#ifndef THIRD_PARTY_PY_AROLLA_ABC_PY_EXPR_VIEW_H_
+#define THIRD_PARTY_PY_AROLLA_ABC_PY_EXPR_VIEW_H_
 
 #include <Python.h>
 
 #include <cstdint>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
 #include "py/arolla/py_utils/py_utils.h"
@@ -101,7 +102,6 @@ class ExprViewProxy {
   //
   // Note:
   //  * The expr-view-proxy must be up-to-date.
-  //
   //  * This method never raises any python exceptions.
   const PyObjectPtr& LookupMemberOrNull(absl::string_view member_name) const;
 
@@ -123,6 +123,13 @@ class ExprViewProxy {
   //
   // Note: This method never raises any python exceptions.
   const PyObjectPtr& call_member_or_null() const { return quick_members_.call; }
+
+  // Returns a set of member names.
+  //
+  // Note:
+  //  * The expr-view-proxy must be up-to-date.
+  //  * This method never raises any python exceptions.
+  absl::flat_hash_set<absl::string_view> GetMemberNames() const;
 
  private:
   int64_t revision_id_ = -1;  // Note: If the `revision_id_` changes,
@@ -194,4 +201,4 @@ void RemoveDefaultExprView();
 
 }  // namespace arolla::python
 
-#endif  // PY_AROLLA_ABC_PY_EXPR_VIEW_H_
+#endif  // THIRD_PARTY_PY_AROLLA_ABC_PY_EXPR_VIEW_H_

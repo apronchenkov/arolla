@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+#include "arolla/serialization_base/decoder.h"
+
 #include <utility>
 
 #include "absl/status/status.h"
@@ -25,9 +27,8 @@
 #include "arolla/jagged_shape/dense_array/serialization_codecs/jagged_shape_codec.pb.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/typed_value.h"
-#include "arolla/serialization/decode.h"
 #include "arolla/serialization_base/base.pb.h"
-#include "arolla/serialization_base/decode.h"
+#include "arolla/serialization_codecs/registry.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
 
@@ -62,7 +63,7 @@ absl::StatusOr<ValueDecoderResult> DecodeJaggedDenseArrayShape(
       value_proto.GetExtension(JaggedDenseArrayShapeV1Proto::extension);
   switch (jagged_shape_proto.value_case()) {
     case JaggedDenseArrayShapeV1Proto::kJaggedDenseArrayShapeQtype:
-      return TypedValue::FromValue(GetQType<JaggedDenseArrayShapePtr>());
+      return TypedValue::FromValue(GetQType<JaggedDenseArrayShape>());
     case JaggedDenseArrayShapeV1Proto::kJaggedDenseArrayShapeValue:
       return DecodeJaggedDenseArrayShapeValue(input_values);
     case JaggedDenseArrayShapeV1Proto::VALUE_NOT_SET:
@@ -73,13 +74,12 @@ absl::StatusOr<ValueDecoderResult> DecodeJaggedDenseArrayShape(
                       static_cast<int>(jagged_shape_proto.value_case())));
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterSerializationCodecs,
-    register_serialization_codecs_jagged_dense_array_shape_v1_decoder,
-    []() -> absl::Status {
-      return serialization::RegisterValueDecoder(kJaggedDenseArrayShapeV1Codec,
-                                                 DecodeJaggedDenseArrayShape);
-    })
+AROLLA_INITIALIZER(
+        .reverse_deps = {arolla::initializer_dep::kS11n},
+        .init_fn = []() -> absl::Status {
+          return RegisterValueDecoder(kJaggedDenseArrayShapeV1Codec,
+                                      DecodeJaggedDenseArrayShape);
+        })
 
 }  // namespace
 }  // namespace arolla::serialization_codecs

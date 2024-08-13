@@ -72,6 +72,9 @@ struct AROLLA_API DenseArray {
   }
 
   bool IsAllMissing() const { return PresentCount() == 0; }
+  bool IsAllPresent() const {
+    return bitmap.empty() || PresentCount() == size();
+  }
 
   // Tests whether the value corresponding to the given offset is present.
   bool present(int64_t offset) const {
@@ -144,8 +147,8 @@ struct AROLLA_API DenseArray {
     return std::move(copy).ForceNoBitmapBitOffset(factory);
   }
 
-  // Iterates through all elements (including missing). Callback `fn` should
-  // have 3 arguments: int64_t id, bool presence, view_type_t<T> value.
+  // Iterates through all elements (including missing) in order. Callback `fn`
+  // should have 3 arguments: int64_t id, bool presence, view_type_t<T> value.
   template <typename Fn>
   void ForEach(Fn&& fn) const {
     DCHECK(CheckBitmapMatchesValues());
@@ -163,7 +166,7 @@ struct AROLLA_API DenseArray {
     }
   }
 
-  // Iterates through all present elements. Callback `fn` should
+  // Iterates through all present elements in order. Callback `fn` should
   // have 2 arguments: int64_t id, view_type_t<T> value.
   template <typename Fn>
   void ForEachPresent(Fn&& fn) const {

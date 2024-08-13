@@ -16,12 +16,18 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "arolla/codegen/qexpr/testing/test_operators.h"
 #include "arolla/memory/frame.h"
 #include "arolla/qexpr/eval_context.h"
@@ -33,13 +39,12 @@
 #include "arolla/qtype/typed_slot.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 namespace {
 
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::ContainsRegex;
 using ::testing::ElementsAre;
 using ::testing::Eq;
@@ -47,7 +52,7 @@ using ::testing::HasSubstr;
 using ::testing::Property;
 
 class OperatorsTest : public ::testing::Test {
-  void SetUp() final { ASSERT_OK(InitArolla()); }
+  void SetUp() final { InitArolla(); }
 };
 
 TEST_F(OperatorsTest, LookupTestOperator) {
@@ -58,7 +63,7 @@ TEST_F(OperatorsTest, LookupTestOperator) {
                 .value();
 
   // Examine operator output types.
-  EXPECT_EQ(op->GetQType(),
+  EXPECT_EQ(op->signature(),
             QExprOperatorSignature::Get({f32_type, f32_type}, f32_type));
 
   // Create a FrameLayout for testing the operator.
@@ -89,7 +94,7 @@ TEST_F(OperatorsTest, LookupOperator_WithOutputType) {
       OperatorRegistry::GetInstance()
           ->LookupOperator("test.add", {f32_type, f32_type}, f32_type)
           .value();
-  EXPECT_EQ(op_float->GetQType(),
+  EXPECT_EQ(op_float->signature(),
             QExprOperatorSignature::Get({f32_type, f32_type}, f32_type));
 
   // Lookup operator test.add(float, float)->double.
@@ -98,7 +103,7 @@ TEST_F(OperatorsTest, LookupOperator_WithOutputType) {
       OperatorRegistry::GetInstance()
           ->LookupOperator("test.add", {f32_type, f32_type}, f64_type)
           .value();
-  EXPECT_EQ(op_double->GetQType(),
+  EXPECT_EQ(op_double->signature(),
             QExprOperatorSignature::Get({f64_type, f64_type}, f64_type));
 
   // Lookup operator test.add(float, float)->int.
@@ -120,7 +125,7 @@ TEST_F(OperatorsTest, Bind) {
           .value();
 
   // Examine operator output types.
-  EXPECT_EQ(op->GetQType(),
+  EXPECT_EQ(op->signature(),
             QExprOperatorSignature::Get({float_type, float_type}, float_type));
 
   // Create a FrameLayout for testing the operator.
@@ -173,13 +178,13 @@ TEST_F(OperatorsTest, TestUserDefinedDataType) {
                  ->LookupOperator("test.vector3",
                                   {f64_type, f64_type, f64_type}, v3_type)
                  .value();
-  EXPECT_EQ(op1->GetQType(), QExprOperatorSignature::Get(
-                                 {f64_type, f64_type, f64_type}, v3_type));
+  EXPECT_EQ(op1->signature(), QExprOperatorSignature::Get(
+                                  {f64_type, f64_type, f64_type}, v3_type));
 
   auto op2 = OperatorRegistry::GetInstance()
                  ->LookupOperator("test.dot_prod", {v3_type, v3_type}, f64_type)
                  .value();
-  EXPECT_EQ(op2->GetQType(),
+  EXPECT_EQ(op2->signature(),
             QExprOperatorSignature::Get({v3_type, v3_type}, f64_type));
 
   // Create an memory layout for computing the squared magnitude of
@@ -254,15 +259,15 @@ TEST_F(OperatorsTest, QExprOperatorSignatureTypeAndName) {
   auto i32 = GetQType<int32_t>();
   auto f64 = GetQType<double>();
   auto fn = QExprOperatorSignature::Get({i32}, f64);
-  EXPECT_EQ(fn->name(), "(INT32)->FLOAT64");
+  EXPECT_EQ(absl::StrCat(fn), "(INT32)->FLOAT64");
 }
 
 TEST_F(OperatorsTest, GetQExprOperatorSignature) {
   auto i32 = GetQType<int32_t>();
   auto f64 = GetQType<double>();
   const QExprOperatorSignature* fn = QExprOperatorSignature::Get({i32}, f64);
-  EXPECT_THAT(fn->GetInputTypes(), ElementsAre(i32));
-  EXPECT_THAT(fn->GetOutputType(), Eq(f64));
+  EXPECT_THAT(fn->input_types(), ElementsAre(i32));
+  EXPECT_THAT(fn->output_type(), Eq(f64));
 }
 
 TEST_F(OperatorsTest, QExprOperatorSignatureInputsAreStored) {
@@ -287,6 +292,80 @@ TEST_F(OperatorsTest, QExprOperatorSignatureSingleton) {
                                        MakeTupleQType({f64, i32, f64}));
   };
   EXPECT_TRUE(get_complex_fn() == get_complex_fn());
+}
+
+class DummyQExprOperator final : public QExprOperator {
+ public:
+  using QExprOperator::QExprOperator;
+
+ private:
+  absl::StatusOr<std::unique_ptr<BoundOperator>> DoBind(
+      absl::Span<const TypedSlot> input_slots,
+      TypedSlot output_slot) const final {
+    return absl::UnimplementedError("unimplemented");
+  }
+};
+
+TEST_F(OperatorsTest, RegisterOperatorWithHigherPriority) {
+  const std::string op_name = "test_register_operator_with_higher_priority.op";
+  const auto f32 = GetQType<float>();
+  const auto f64 = GetQType<double>();
+  auto op1 = std::make_shared<DummyQExprOperator>(
+      op_name, QExprOperatorSignature::Get({}, f32));
+  auto op2 = std::make_shared<DummyQExprOperator>(
+      op_name, QExprOperatorSignature::Get({}, f64));
+  auto& registry = *OperatorRegistry::GetInstance();
+  ASSERT_OK(registry.RegisterOperator(op1, 0));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f32), IsOkAndHolds(op1));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f64),
+              StatusIs(absl::StatusCode::kNotFound));
+  ASSERT_OK(registry.RegisterOperator(op2, 1));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f32),
+              StatusIs(absl::StatusCode::kNotFound));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f64), IsOkAndHolds(op2));
+}
+
+TEST_F(OperatorsTest, RegisterOperatorWithLowerPriority) {
+  const std::string op_name = "test_register_operator_with_lower_priority.op";
+  const auto f32 = GetQType<float>();
+  const auto f64 = GetQType<double>();
+  auto op1 = std::make_shared<DummyQExprOperator>(
+      op_name, QExprOperatorSignature::Get({}, f32));
+  auto op2 = std::make_shared<DummyQExprOperator>(
+      op_name, QExprOperatorSignature::Get({}, f64));
+  auto& registry = *OperatorRegistry::GetInstance();
+  ASSERT_OK(registry.RegisterOperator(op1, 1));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f32), IsOkAndHolds(op1));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f64),
+              StatusIs(absl::StatusCode::kNotFound));
+  ASSERT_OK(registry.RegisterOperator(op2, 0));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f32), IsOkAndHolds(op1));
+  ASSERT_THAT(registry.LookupOperator(op_name, {}, f64),
+              StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(OperatorsTest, RegisterOperatorAlreadyExists) {
+  const std::string op_name = "test_register_operator_already_exisits.op";
+  const auto f32 = GetQType<float>();
+  auto op = std::make_shared<DummyQExprOperator>(
+      op_name, QExprOperatorSignature::Get({}, f32));
+  auto& registry = *OperatorRegistry::GetInstance();
+  ASSERT_OK(registry.RegisterOperator(op, 1));
+  ASSERT_THAT(registry.RegisterOperator(op, 1),
+              StatusIs(absl::StatusCode::kAlreadyExists));
+  ASSERT_OK(registry.RegisterOperator(op, 0));
+  ASSERT_THAT(registry.RegisterOperator(op, 0),
+              StatusIs(absl::StatusCode::kAlreadyExists));
+}
+
+TEST_F(OperatorsTest, RegisterOperatorPriorityOutOfRange) {
+  const std::string op_name = "test_register_operator_priority_out_or_range.op";
+  const auto f32 = GetQType<float>();
+  auto op = std::make_shared<DummyQExprOperator>(
+      op_name, QExprOperatorSignature::Get({}, f32));
+  auto& registry = *OperatorRegistry::GetInstance();
+  ASSERT_THAT(registry.RegisterOperator(op, 2),
+              StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 }  // namespace

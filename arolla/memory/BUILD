@@ -39,10 +39,10 @@ cc_library(
         "//arolla/util",
         "//arolla/util:status_backport",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:dynamic_annotations",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/hash",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -123,9 +123,10 @@ cc_test(
     deps = [
         ":memory",
         "//arolla/util",
-        "//arolla/util/testing",
+        "//arolla/util:status_backport",
         "@com_google_absl//absl/base:dynamic_annotations",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -145,8 +146,8 @@ cc_test(
     deps = [
         ":memory",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_googletest//:gtest_main",

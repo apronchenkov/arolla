@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+#include "arolla/serialization_base/encoder.h"
+
 #include <cstdint>
 
 #include "absl/status/status.h"
@@ -26,9 +28,8 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/typed_ref.h"
 #include "arolla/qtype/typed_value.h"
-#include "arolla/serialization/encode.h"
 #include "arolla/serialization_base/base.pb.h"
-#include "arolla/serialization_base/encode.h"
+#include "arolla/serialization_codecs/registry.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
 
@@ -39,9 +40,11 @@ using ::arolla::serialization_base::Encoder;
 using ::arolla::serialization_base::ValueProto;
 using ::arolla::serialization_codecs::JaggedArrayShapeV1Proto;
 
-ValueProto GenValueProto(Encoder& encoder) {
+absl::StatusOr<ValueProto> GenValueProto(Encoder& encoder) {
+  ASSIGN_OR_RETURN(auto codec_index,
+                   encoder.EncodeCodec(kJaggedArrayShapeV1Codec));
   ValueProto value_proto;
-  value_proto.set_codec_index(encoder.EncodeCodec(kJaggedArrayShapeV1Codec));
+  value_proto.set_codec_index(codec_index);
   return value_proto;
 }
 
@@ -49,12 +52,12 @@ absl::StatusOr<ValueProto> EncodeJaggedArrayShapeQType(TypedRef value,
                                                        Encoder& encoder) {
   // Note: Safe since this function is only called for QTypes.
   const auto& qtype = value.UnsafeAs<QTypePtr>();
-  if (qtype != GetQType<JaggedArrayShapePtr>()) {
+  if (qtype != GetQType<JaggedArrayShape>()) {
     return absl::InvalidArgumentError(
         absl::StrFormat("%s does not support serialization of %s",
                         kJaggedArrayShapeV1Codec, qtype->name()));
   }
-  auto value_proto = GenValueProto(encoder);
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(JaggedArrayShapeV1Proto::extension)
       ->set_jagged_array_shape_qtype(true);
   return value_proto;
@@ -62,12 +65,12 @@ absl::StatusOr<ValueProto> EncodeJaggedArrayShapeQType(TypedRef value,
 
 absl::StatusOr<ValueProto> EncodeJaggedArrayShapeValue(TypedRef value,
                                                        Encoder& encoder) {
-  auto value_proto = GenValueProto(encoder);
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(JaggedArrayShapeV1Proto::extension)
       ->set_jagged_array_shape_value(true);
   // Note: Safe since this function is only called for JaggedArrayShapes.
-  const auto& jagged_shape = value.UnsafeAs<JaggedArrayShapePtr>();
-  for (const auto& edge : jagged_shape->edges()) {
+  const auto& jagged_shape = value.UnsafeAs<JaggedArrayShape>();
+  for (const auto& edge : jagged_shape.edges()) {
     ASSIGN_OR_RETURN(int64_t edge_index,
                      encoder.EncodeValue(TypedValue::FromValue(edge)));
     value_proto.add_input_value_indices(edge_index);
@@ -79,7 +82,7 @@ absl::StatusOr<ValueProto> EncodeJaggedArrayShape(TypedRef value,
                                                   Encoder& encoder) {
   if (value.GetType() == GetQType<QTypePtr>()) {
     return EncodeJaggedArrayShapeQType(value, encoder);
-  } else if (value.GetType() == GetQType<JaggedArrayShapePtr>()) {
+  } else if (value.GetType() == GetQType<JaggedArrayShape>()) {
     return EncodeJaggedArrayShapeValue(value, encoder);
   } else {
     return absl::InvalidArgumentError(absl::StrFormat(
@@ -88,14 +91,11 @@ absl::StatusOr<ValueProto> EncodeJaggedArrayShape(TypedRef value,
   }
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterSerializationCodecs,
-    register_serialization_codecs_jagged_array_shape_v1_encoder,
-    []() -> absl::Status {
-      RETURN_IF_ERROR(serialization::RegisterValueEncoderByQType(
-          GetQType<JaggedArrayShapePtr>(), EncodeJaggedArrayShape));
-      return absl::OkStatus();
-    })
+AROLLA_INITIALIZER(
+        .reverse_deps = {arolla::initializer_dep::kS11n}, .init_fn = [] {
+          return RegisterValueEncoderByQType(GetQType<JaggedArrayShape>(),
+                                             EncodeJaggedArrayShape);
+        })
 
 }  // namespace
 }  // namespace arolla::serialization_codecs

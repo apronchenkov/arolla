@@ -28,10 +28,10 @@
 #include "arolla/qtype/shape_qtype.h"
 #include "arolla/qtype/typed_ref.h"
 #include "arolla/qtype/weak_qtype.h"
-#include "arolla/serialization/encode.h"
-#include "arolla/serialization_base/encode.h"
+#include "arolla/serialization_base/encoder.h"
 #include "arolla/serialization_codecs/generic/codec_name.h"
 #include "arolla/serialization_codecs/generic/optional_codec.pb.h"
+#include "arolla/serialization_codecs/registry.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/indestructible.h"
 #include "arolla/util/init_arolla.h"
@@ -43,38 +43,39 @@
 namespace arolla::serialization_codecs {
 namespace {
 
-using ::arolla::serialization::RegisterValueEncoderByQType;
 using ::arolla::serialization_base::Encoder;
 using ::arolla::serialization_base::ValueProto;
-using ::arolla::serialization_codecs::OptionalV1Proto;
 
-ValueProto GenValueProto(Encoder& encoder) {
+absl::StatusOr<ValueProto> GenValueProto(Encoder& encoder) {
+  ASSIGN_OR_RETURN(auto codec_index, encoder.EncodeCodec(kOptionalV1Codec));
   ValueProto value_proto;
-  value_proto.set_codec_index(encoder.EncodeCodec(kOptionalV1Codec));
+  value_proto.set_codec_index(codec_index);
   return value_proto;
 }
 
-ValueProto EncodeOptionalUnitValue(TypedRef value, Encoder& encoder) {
+absl::StatusOr<ValueProto> EncodeOptionalUnitValue(TypedRef value,
+                                                   Encoder& encoder) {
   DCHECK(value.GetType() == GetQType<OptionalUnit>());
-  auto value_proto = GenValueProto(encoder);
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(OptionalV1Proto::extension)
       ->set_optional_unit_value(
           static_cast<const OptionalUnit*>(value.GetRawPointer())->present);
   return value_proto;
 }
 
-ValueProto EncodeOptionalUnitQType(Encoder& encoder) {
-  auto value_proto = GenValueProto(encoder);
+absl::StatusOr<ValueProto> EncodeOptionalUnitQType(Encoder& encoder) {
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(OptionalV1Proto::extension)
       ->set_optional_unit_qtype(true);
   return value_proto;
 }
 
 #define GEN_ENCODE_OPTIONAL(NAME, T, FIELD, ACTION)                          \
-  ValueProto EncodeOptional##NAME##Value(TypedRef value, Encoder& encoder) { \
+  absl::StatusOr<ValueProto> EncodeOptional##NAME##Value(TypedRef value,     \
+                                                         Encoder& encoder) { \
     /* It's safe because we dispatch based on qtype in EncodeOptional(). */  \
     const auto& y = value.UnsafeAs<OptionalValue<T>>();                      \
-    auto value_proto = GenValueProto(encoder);                               \
+    ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));              \
     auto field = value_proto.MutableExtension(OptionalV1Proto::extension)    \
                      ->mutable_##FIELD##_value();                            \
     if (y.present) {                                                         \
@@ -84,8 +85,8 @@ ValueProto EncodeOptionalUnitQType(Encoder& encoder) {
     return value_proto;                                                      \
   }                                                                          \
                                                                              \
-  ValueProto EncodeOptional##NAME##QType(Encoder& encoder) {                 \
-    auto value_proto = GenValueProto(encoder);                               \
+  absl::StatusOr<ValueProto> EncodeOptional##NAME##QType(Encoder& encoder) { \
+    ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));              \
     value_proto.MutableExtension(OptionalV1Proto::extension)                 \
         ->set_##FIELD##_qtype(true);                                         \
     return value_proto;                                                      \
@@ -107,24 +108,25 @@ GEN_ENCODE_OPTIONAL(WeakFloat, double, optional_weak_float, set_value(x))
 
 #undef GEN_ENCODE_OPTIONAL
 
-ValueProto EncodeOptionalShapeValue(TypedRef value, Encoder& encoder) {
+absl::StatusOr<ValueProto> EncodeOptionalShapeValue(TypedRef value,
+                                                    Encoder& encoder) {
   DCHECK(value.GetType() == GetQType<OptionalScalarShape>());
-  auto value_proto = GenValueProto(encoder);
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(OptionalV1Proto::extension)
       ->set_optional_shape_value(true);
   return value_proto;
 }
 
-ValueProto EncodeOptionalShapeQType(Encoder& encoder) {
-  auto value_proto = GenValueProto(encoder);
+absl::StatusOr<ValueProto> EncodeOptionalShapeQType(Encoder& encoder) {
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(OptionalV1Proto::extension)
       ->set_optional_shape_qtype(true);
   return value_proto;
 }
 
 absl::StatusOr<ValueProto> EncodeOptional(TypedRef value, Encoder& encoder) {
-  using QTypeEncoder = ValueProto (*)(Encoder&);
-  using ValueEncoder = ValueProto (*)(TypedRef, Encoder&);
+  using QTypeEncoder = absl::StatusOr<ValueProto> (*)(Encoder&);
+  using ValueEncoder = absl::StatusOr<ValueProto> (*)(TypedRef, Encoder&);
   using QTypeEncoders = absl::flat_hash_map<QTypePtr, QTypeEncoder>;
   using ValueEncoders = absl::flat_hash_map<QTypePtr, ValueEncoder>;
   static const Indestructible<QTypeEncoders> kQTypeEncoders(QTypeEncoders{
@@ -171,23 +173,23 @@ absl::StatusOr<ValueProto> EncodeOptional(TypedRef value, Encoder& encoder) {
       kOptionalV1Codec, value.GetType()->name(), value.Repr()));
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterSerializationCodecs,
-    register_serialization_codecs_optional_v1_encoder, []() -> absl::Status {
-      RETURN_IF_ERROR(RegisterValueEncoderByQType(
-          GetQType<OptionalScalarShape>(), EncodeOptional));
-      RETURN_IF_ERROR(RegisterValueEncoderByQType(GetOptionalWeakFloatQType(),
-                                                  EncodeOptional));
-      absl::Status status;
-      meta::foreach_type<ScalarTypes>([&](auto meta_type) {
-        if (status.ok()) {
-          status = RegisterValueEncoderByQType(
-              GetOptionalQType<typename decltype(meta_type)::type>(),
-              EncodeOptional);
-        }
-      });
-      return status;
-    });
+AROLLA_INITIALIZER(
+        .reverse_deps = {arolla::initializer_dep::kS11n},
+        .init_fn = []() -> absl::Status {
+          RETURN_IF_ERROR(RegisterValueEncoderByQType(
+              GetQType<OptionalScalarShape>(), EncodeOptional));
+          RETURN_IF_ERROR(RegisterValueEncoderByQType(
+              GetOptionalWeakFloatQType(), EncodeOptional));
+          absl::Status status;
+          meta::foreach_type<ScalarTypes>([&](auto meta_type) {
+            if (status.ok()) {
+              status = RegisterValueEncoderByQType(
+                  GetOptionalQType<typename decltype(meta_type)::type>(),
+                  EncodeOptional);
+            }
+          });
+          return status;
+        })
 
 }  // namespace
 }  // namespace arolla::serialization_codecs

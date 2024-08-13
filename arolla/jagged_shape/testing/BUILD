@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO: describe this package.
+# Test utilities for jagged shape.
 
-package(default_visibility = ["//arolla:internal"])
+package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
@@ -26,7 +26,6 @@ cc_library(
     deps = [
         "//arolla/jagged_shape",
         "//arolla/util",
-        "@com_google_absl//absl/log:check",
         "@com_google_googletest//:gtest",
     ],
 )

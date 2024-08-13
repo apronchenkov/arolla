@@ -15,9 +15,7 @@
 #include <functional>
 #include <optional>
 
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "arolla/expr/expr.h"
 #include "arolla/expr/expr_node.h"
@@ -26,21 +24,19 @@
 #include "arolla/serving/embedded_model.h"
 #include "arolla/serving/expr_compiler.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace {
 
 // Do not use using from `::arolla` in order to test that
 // macro doesn't use not fully specified (Arolla local) names.
-using ::arolla::testing::StatusIs;
-using ::testing::MatchesRegex;
 
 struct TestInput {
   float x;
   float y;
 };
 
-absl::StatusOr<::arolla::InputLoaderPtr<TestInput>> CreateInputLoader() {
+absl::StatusOr<std::unique_ptr<arolla::InputLoader<TestInput>>>
+CreateInputLoader() {
   return ::arolla::CreateAccessorsInputLoader<TestInput>(
       "y", [](const auto& x) { return x.y; });
 }
@@ -65,16 +61,11 @@ AROLLA_DEFINE_EMBEDDED_MODEL_FN(
 
 }  // namespace test_namespace
 
-TEST(ExprCompilerTest, UseEmbeddedExprWithIncorrectInputLoader) {
-  EXPECT_THAT(::arolla::InitArolla(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       MatchesRegex(".*MyDynamicErrorEmbeddedModel.*embedded_"
-                                    "model_error_test.cc.*")));
-  auto model = ::test_namespace::MyDynamicErrorEmbeddedModel();
-  EXPECT_THAT(
-      model(TestInput{.x = 0, .y = 1}),
-      StatusIs(absl::StatusCode::kInvalidArgument,
-               MatchesRegex(".*unknown inputs: x \\(available: y\\).*")));
+TEST(ExprCompilerDeathTest, UseEmbeddedExprWithIncorrectInputLoader) {
+  ASSERT_DEATH(::arolla::InitArolla(),
+               ".*unknown inputs: x \\(available: y\\)"
+               ".*MyDynamicErrorEmbeddedModel.*embedded_"
+               ".*model_error_test.cc.*");
 }
 
 }  // namespace

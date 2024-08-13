@@ -127,58 +127,62 @@ class DetectQTypeSignaturesTest(parameterized.TestCase):
     with self.assertRaisesWithLiteralMatch(
         ValueError, 'found no supported qtype signatures'
     ):
-      _ = tuple(
-          detect_qtype_signatures.detect_qtype_signatures(op, max_arity=0)
-      )
+      detect_qtype_signatures.detect_qtype_signatures(op, max_arity=0)
 
   def test_max_arity_with_variadic(self):
     possible_qtypes = (arolla_types.INT32, arolla_types.FLOAT32)
     op = arolla_types.LambdaOperator('*args', P.args)
     self.assertLen(
-        tuple(
-            detect_qtype_signatures.detect_qtype_signatures(
-                op, possible_qtypes=possible_qtypes, max_arity=5
-            )
+        detect_qtype_signatures.detect_qtype_signatures(
+            op, possible_qtypes=possible_qtypes, max_arity=5
         ),
         2**6 - 1,
     )
     with self.assertRaisesRegex(ValueError, re.escape('specify `max_arity`')):
-      _ = tuple(
-          detect_qtype_signatures.detect_qtype_signatures(
-              op, possible_qtypes=possible_qtypes
-          )
+      detect_qtype_signatures.detect_qtype_signatures(
+          op, possible_qtypes=possible_qtypes
       )
 
   def test_max_arity_with_variadic_and_default(self):
     possible_qtypes = (arolla_types.INT32, arolla_types.FLOAT32)
     op = arolla_types.LambdaOperator(('i, f=, *args', 0.5), (P.i, P.f, P.args))
     self.assertLen(
-        tuple(
-            detect_qtype_signatures.detect_qtype_signatures(
-                op, possible_qtypes=possible_qtypes, max_arity=1
-            )
+        detect_qtype_signatures.detect_qtype_signatures(
+            op, possible_qtypes=possible_qtypes, max_arity=1
         ),
         2,
     )
     self.assertLen(
-        tuple(
-            detect_qtype_signatures.detect_qtype_signatures(
-                op, possible_qtypes=possible_qtypes, max_arity=2
-            )
+        detect_qtype_signatures.detect_qtype_signatures(
+            op, possible_qtypes=possible_qtypes, max_arity=2
         ),
         6,
     )
     self.assertLen(
-        tuple(
-            detect_qtype_signatures.detect_qtype_signatures(
-                op, possible_qtypes=possible_qtypes, max_arity=3
-            )
+        detect_qtype_signatures.detect_qtype_signatures(
+            op, possible_qtypes=possible_qtypes, max_arity=3
         ),
         14,
     )
 
+  def test_no_possible_qtypes(self):
+    op_with_default = arolla_types.RestrictedLambdaOperator(('i=', 1), P.i)
+    self.assertCountEqual(
+        detect_qtype_signatures.detect_qtype_signatures(
+            op_with_default, possible_qtypes=()
+        ),
+        [(arolla_types.INT32,)],
+    )
+    op_without_default = arolla_types.RestrictedLambdaOperator('i', P.i)
+    with self.assertRaisesWithLiteralMatch(
+        ValueError, 'found no supported qtype signatures'
+    ):
+      detect_qtype_signatures.detect_qtype_signatures(
+          op_without_default, possible_qtypes=()
+      )
+
   def test_error_no_qtype_signatures_found(self):
-    op = arolla_types.BackendOperator(
+    op_without_signatures = arolla_types.BackendOperator(
         'operator_without_signatures',
         'unused_x',
         qtype_inference_expr=arolla_abc.NOTHING,
@@ -186,7 +190,7 @@ class DetectQTypeSignaturesTest(parameterized.TestCase):
     with self.assertRaisesWithLiteralMatch(
         ValueError, 'found no supported qtype signatures'
     ):
-      _ = tuple(detect_qtype_signatures.detect_qtype_signatures(op))
+      detect_qtype_signatures.detect_qtype_signatures(op_without_signatures)
 
   def test_error_unsupported_parameter_kinds(self):
     op = arolla_types.LambdaOperator('x', P.x)
@@ -199,7 +203,7 @@ class DetectQTypeSignaturesTest(parameterized.TestCase):
         )),
     ):
       with self.assertRaises(AssertionError):
-        _ = tuple(detect_qtype_signatures.detect_qtype_signatures(op))
+        detect_qtype_signatures.detect_qtype_signatures(op)
     with mock.patch.object(
         arolla_abc,
         'get_operator_signature',
@@ -208,7 +212,7 @@ class DetectQTypeSignaturesTest(parameterized.TestCase):
         ),
     ):
       with self.assertRaises(AssertionError):
-        _ = tuple(detect_qtype_signatures.detect_qtype_signatures(op))
+        detect_qtype_signatures.detect_qtype_signatures(op)
     with mock.patch.object(
         arolla_abc,
         'get_operator_signature',
@@ -218,7 +222,294 @@ class DetectQTypeSignaturesTest(parameterized.TestCase):
         )),
     ):
       with self.assertRaises(AssertionError):
-        _ = tuple(detect_qtype_signatures.detect_qtype_signatures(op))
+        detect_qtype_signatures.detect_qtype_signatures(op)
+
+
+class AssertQTypeSignaturesEqualTest(parameterized.TestCase):
+
+  def test_assert_qtype_signatures_equal__success(self):
+    detect_qtype_signatures.assert_qtype_signatures_equal([], [])
+    detect_qtype_signatures.assert_qtype_signatures_equal(
+        [(arolla_types.INT32, arolla_types.INT32)],
+        [(arolla_types.INT32, arolla_types.INT32)],
+    )
+    detect_qtype_signatures.assert_qtype_signatures_equal(
+        [
+            (
+                arolla_types.INT32,
+                arolla_types.INT32,
+            ),
+            (
+                arolla_types.FLOAT64,
+                arolla_types.FLOAT64,
+            ),
+            (  # duplicate signature to test unique-ness
+                arolla_types.FLOAT64,
+                arolla_types.FLOAT64,
+            ),
+        ],
+        [
+            (
+                arolla_types.FLOAT64,
+                arolla_types.FLOAT64,
+            ),
+            (  # duplicate signature to test unique-ness
+                arolla_types.FLOAT64,
+                arolla_types.FLOAT64,
+            ),
+            (
+                arolla_types.INT32,
+                arolla_types.INT32,
+            ),
+        ],
+    )
+
+  def test_assert_qtype_signatures_equal__all_kinds_of_errors(self):
+    detected = [
+        (  # Matches
+            arolla_types.INT32,
+            arolla_types.INT32,
+        ),
+        (  # Matches
+            arolla_types.INT64,
+            arolla_types.INT64,
+            arolla_types.INT64,
+        ),
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+        ),
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT32,
+        ),
+        (  # Missing detected
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+        ),
+        (  # Missing detected
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+        ),
+    ]
+    expected = [
+        (  # Matches
+            arolla_types.INT32,
+            arolla_types.INT32,
+        ),
+        (  # Matches
+            arolla_types.INT64,
+            arolla_types.INT64,
+            arolla_types.INT64,
+        ),
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT64,
+        ),
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+        ),
+        (  # Missing expected
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+        ),
+        (  # Missing expected
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+        ),
+    ]
+
+    with self.assertRaisesRegex(
+        AssertionError,
+        re.escape("""Sets of qtype signatures are not equal:
+
+  Unexpected result qtypes:
+    (FLOAT32, FLOAT32) -> FLOAT32, expected FLOAT64
+    (FLOAT32, FLOAT64) -> FLOAT32, expected FLOAT64
+
+  The following qtype signatures expected, but not supported:
+    (FLOAT64, FLOAT64, FLOAT64) -> FLOAT64
+    (FLOAT64, FLOAT64, FLOAT64, FLOAT64) -> FLOAT64
+
+  The following qtype signatures supported, but not expected:
+    (FLOAT32, FLOAT32, FLOAT32) -> FLOAT32
+    (FLOAT32, FLOAT32, FLOAT32, FLOAT32) -> FLOAT32"""),
+    ):
+      detect_qtype_signatures.assert_qtype_signatures_equal(detected, expected)
+
+    with self.assertRaisesRegex(
+        AssertionError,
+        re.escape("""Sets of qtype signatures are not equal:
+
+  Unexpected result qtypes:
+    (FLOAT32, FLOAT32) -> FLOAT32, expected FLOAT64
+    ... (1 more)
+
+  The following qtype signatures expected, but not supported:
+    (FLOAT64, FLOAT64, FLOAT64) -> FLOAT64
+    ... (1 more)
+
+  The following qtype signatures supported, but not expected:
+    (FLOAT32, FLOAT32, FLOAT32) -> FLOAT32
+    ... (1 more)"""),
+    ):
+      detect_qtype_signatures.assert_qtype_signatures_equal(
+          detected, expected, max_errors_to_report=1
+      )
+
+    with self.assertRaisesRegex(AssertionError, 'foo'):
+      detect_qtype_signatures.assert_qtype_signatures_equal(
+          detected, expected, msg='foo'
+      )
+
+  def test_assert_qtype_signatures_equal__one_kind_of_errors(self):
+    detected = [
+        (  # Matches
+            arolla_types.INT32,
+            arolla_types.INT32,
+        ),
+        (  # Matches
+            arolla_types.INT64,
+            arolla_types.INT64,
+            arolla_types.INT64,
+        ),
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+        ),
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT32,
+        ),
+    ]
+    expected = [
+        (arolla_types.INT32, arolla_types.INT32),  # Matches
+        (arolla_types.INT64, arolla_types.INT64, arolla_types.INT64),  # Matches
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT64,
+        ),
+        (  # Changed output type
+            arolla_types.FLOAT32,
+            arolla_types.FLOAT64,
+            arolla_types.FLOAT64,
+        ),
+    ]
+
+    with self.assertRaisesRegex(
+        AssertionError,
+        re.escape("""Sets of qtype signatures are not equal:
+
+  Unexpected result qtypes:
+    (FLOAT32, FLOAT32) -> FLOAT32, expected FLOAT64
+    (FLOAT32, FLOAT64) -> FLOAT32, expected FLOAT64""") + '$',
+    ):
+      detect_qtype_signatures.assert_qtype_signatures_equal(detected, expected)
+
+    with self.assertRaisesRegex(
+        AssertionError,
+        re.escape("""Sets of qtype signatures are not equal:
+
+  Unexpected result qtypes:
+    (FLOAT32, FLOAT32) -> FLOAT32, expected FLOAT64
+    ... (1 more)""") + '$',
+    ):
+      detect_qtype_signatures.assert_qtype_signatures_equal(
+          detected, expected, max_errors_to_report=1
+      )
+
+    with self.assertRaisesRegex(AssertionError, 'foo'):
+      detect_qtype_signatures.assert_qtype_signatures_equal(
+          detected, expected, msg='foo'
+      )
+
+  def test_assert_qtype_signatures_equal__wrong_input(self):
+    with self.assertRaisesRegex(
+        AssertionError,
+        'duplicate input types found in actual signatures',
+    ):
+      detect_qtype_signatures.assert_qtype_signatures_equal(
+          [
+              (arolla_types.INT32, arolla_types.INT32),
+              (arolla_types.INT32, arolla_types.FLOAT32),
+          ],
+          [],
+      )
+
+    with self.assertRaisesRegex(
+        AssertionError,
+        'duplicate input types found in expected signatures',
+    ):
+      detect_qtype_signatures.assert_qtype_signatures_equal(
+          [],
+          [
+              (arolla_types.INT32, arolla_types.INT32),
+              (arolla_types.INT32, arolla_types.FLOAT32),
+          ],
+      )
+
+
+class AssertQTypeSignaturesTest(parameterized.TestCase):
+
+  def test_assert_qtype_signatures(self):
+    op = arolla_types.RestrictedLambdaOperator(
+        'x',
+        P.x & arolla_types.missing(),
+        qtype_constraints=[
+            ((P.x == arolla_types.FLOAT32) | (P.x == arolla_types.FLOAT64), '')
+        ],
+    )
+    detect_qtype_signatures.assert_qtype_signatures(
+        op,
+        [
+            (arolla_types.FLOAT32, arolla_types.OPTIONAL_FLOAT32),
+            (arolla_types.FLOAT64, arolla_types.OPTIONAL_FLOAT64),
+        ],
+    )
+    detect_qtype_signatures.assert_qtype_signatures(
+        op,
+        [
+            (arolla_types.FLOAT32, arolla_types.OPTIONAL_FLOAT32),
+        ],
+        possible_qtypes=(arolla_types.FLOAT32,),
+    )
+    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
+        ValueError, 'found no supported qtype signatures'
+    ):
+      detect_qtype_signatures.assert_qtype_signatures(
+          op,
+          [],
+          max_arity=0,
+      )
+    with self.assertRaisesRegex(
+        AssertionError,
+        'Sets of qtype signatures are not equal',
+    ):
+      detect_qtype_signatures.assert_qtype_signatures(
+          op,
+          [
+              (arolla_types.FLOAT32, arolla_types.OPTIONAL_FLOAT64),
+              (arolla_types.FLOAT64, arolla_types.OPTIONAL_FLOAT32),
+          ],
+      )
 
 
 if __name__ == '__main__':

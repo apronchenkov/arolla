@@ -110,10 +110,9 @@ PyObject* PyMakeOperatorNode(PyObject* /*self*/, PyObject** py_args,
 PyObject* PyUnsafeMakeOperatorNode(PyObject* /*self*/, PyObject** py_args,
                                    Py_ssize_t nargs) {
   if (nargs < 1) {
-    PyErr_SetString(
-        PyExc_TypeError,
-        "arolla.abc.unsafe_make_operator_node() missing 1 required "
-        "positional argument: 'op'");
+    PyErr_SetString(PyExc_TypeError,
+                    "arolla.abc.unsafe_make_operator_node() missing 1 required "
+                    "positional argument: 'op'");
     return nullptr;
   } else if (nargs > 2) {
     return PyErr_Format(
@@ -334,7 +333,7 @@ PyObject* PyAuxGetPythonSignature(PyObject* /*self*/, PyObject* py_op) {
 
 const PyMethodDef kDefPyMakeOperatorNode = {
     "make_operator_node",
-    reinterpret_cast<PyCFunction>(PyMakeOperatorNode),
+    reinterpret_cast<PyCFunction>(&PyMakeOperatorNode),
     METH_FASTCALL,
     ("make_operator_node(op, inputs=(), /)\n"
      "--\n\n"
@@ -348,7 +347,7 @@ const PyMethodDef kDefPyMakeOperatorNode = {
 
 const PyMethodDef kDefPyUnsafeMakeOperatorNode = {
     "unsafe_make_operator_node",
-    reinterpret_cast<PyCFunction>(PyUnsafeMakeOperatorNode),
+    reinterpret_cast<PyCFunction>(&PyUnsafeMakeOperatorNode),
     METH_FASTCALL,
     ("unsafe_make_operator_node(op, inputs=(), /)\n"
      "--\n\n"

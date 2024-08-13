@@ -18,16 +18,22 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "py/arolla/abc/pybind11_utils.h"
 #include "pybind11/attr.h"
 #include "pybind11/cast.h"
 #include "pybind11/options.h"
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
+#include "pybind11_abseil/absl_casters.h"
 #include "arolla/expr/expr_node.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/serialization/decode.h"
 #include "arolla/serialization/encode.h"
+#include "arolla/serialization/riegeli.h"
+#include "arolla/serialization/utils.h"
 #include "arolla/serialization_base/base.pb.h"
 
 namespace arolla::python {
@@ -37,42 +43,156 @@ namespace py = pybind11;
 
 using ::arolla::expr::ExprNodePtr;
 using ::arolla::serialization::Decode;
+using ::arolla::serialization::DecodeExprSet;
+using ::arolla::serialization::DecodeFromRiegeliData;
+using ::arolla::serialization::DecodeResult;
 using ::arolla::serialization::Encode;
+using ::arolla::serialization::EncodeAsRiegeliData;
+using ::arolla::serialization::EncodeExprSet;
 using ::arolla::serialization_base::ContainerProto;
 
 PYBIND11_MODULE(clib, m) {
-
   py::options options;
   options.disable_function_signatures();
 
   // go/keep-sorted start block=yes newline_separated=yes
   m.def(
+      "dumps_expr_set",
+      [](const absl::flat_hash_map<std::string, ExprNodePtr>& expr_set) {
+        absl::StatusOr<std::string> result;
+        {
+          py::gil_scoped_release guard;
+          auto container_proto = EncodeExprSet(expr_set);
+          if (container_proto.ok()) {
+            result = container_proto->SerializeAsString();
+          } else {
+            result = container_proto.status();
+          }
+        }
+        return py::bytes(pybind11_unstatus_or(std::move(result)));
+      },
+      py::arg("data"), py::pos_only(),
+      py::doc(
+          "dumps_expr_set(expr_set, /)\n"
+          "--\n\n"
+          "Encodes the given set of named expressions into a bytes object.\n\n"
+          "Note: The order of the dict keys does not guarantee to be "
+          "preserved."));
+
+  m.def(
       "dumps_many",
       [](const std::vector<TypedValue>& values,
          const std::vector<ExprNodePtr>& exprs) {
-        auto result = pybind11_unstatus_or(Encode(values, exprs));
-        return py::bytes(result.SerializeAsString());
+        absl::StatusOr<std::string> result;
+        {
+          py::gil_scoped_release guard;
+          auto container_proto = Encode(values, exprs);
+          if (container_proto.ok()) {
+            result = container_proto->SerializeAsString();
+          } else {
+            result = container_proto.status();
+          }
+        }
+        return py::bytes(pybind11_unstatus_or(std::move(result)));
       },
       py::arg("values"), py::arg("exprs"),
       py::doc("dumps_many(values, exprs)\n"
               "--\n\n"
-              "Encodes the given values and expressions."));
+              "Encodes the given values and expressions into a bytes object."));
+
+  m.def(
+      "loads_expr_set",
+      [](py::bytes data) {
+        const auto data_view = py::cast<absl::string_view>(data);
+        decltype(DecodeExprSet(ContainerProto())) result;
+        {
+          py::gil_scoped_release guard;
+          ContainerProto container_proto;
+          if (!container_proto.ParseFromString(data_view)) {
+            throw py::value_error("could not parse ContainerProto");
+          }
+          result = DecodeExprSet(container_proto);
+        }
+        return pybind11_unstatus_or(std::move(result));
+      },
+      py::arg("data"), py::pos_only(),
+      py::doc("loads_expr_set(data, /)\n"
+              "--\n\n"
+              "Decodes a set of named expressions from the given data.\n\n"
+              "Note: The order of the keys in the resulting dict is "
+              "non-deterministic."));
 
   m.def(
       "loads_many",
-      [](const py::bytes& data) {
-        ContainerProto container_proto;
-        if (!container_proto.ParseFromString(data)) {
-          throw py::value_error("could not parse ContainerProto");
+      [](py::bytes data) {
+        const auto data_view = py::cast<absl::string_view>(data);
+        absl::StatusOr<DecodeResult> result;
+        {
+          py::gil_scoped_release guard;
+          ContainerProto container_proto;
+          if (!container_proto.ParseFromString(data)) {
+            throw py::value_error("could not parse ContainerProto");
+          }
+          result = Decode(container_proto);
         }
-        auto result = pybind11_unstatus_or(Decode(std::move(container_proto)));
-        return std::pair(std::move(result.values), std::move(result.exprs));
+        pybind11_throw_if_error(result.status());
+        return std::pair(std::move(result->values), std::move(result->exprs));
       },
       py::arg("data"), py::pos_only(),
       py::doc("loads_many(data, /)\n"
               "--\n\n"
-              "Decodes values and expressions from the given bytes."));
+              "Decodes values and expressions from the given data."));
 
+  m.def(
+      "riegeli_dumps_many",
+      [](const std::vector<TypedValue>& values,
+         const std::vector<ExprNodePtr>& exprs, py::str riegeli_options) {
+        const auto riegeli_options_view =
+            py::cast<absl::string_view>(riegeli_options);
+        absl::StatusOr<std::string> result;
+        {
+          py::gil_scoped_release guard;
+          result = EncodeAsRiegeliData(values, exprs, riegeli_options_view);
+        }
+        pybind11_throw_if_error(result.status());
+        return py::bytes(*std::move(result));
+      },
+      py::arg("values"), py::arg("exprs"), py::kw_only(),
+      py::arg("riegeli_options") = "",
+      py::doc(
+          "riegeli_dumps_many(values, exprs, *, riegeli_options='')\n"
+          "--\n\n"
+          "Encodes multiple values and expressions into riegeli container "
+          "data.\n\n"
+          "Args:\n"
+          "  values: A list of values for serialization.\n"
+          "  expr: A list of expressions for serialization.\n"
+          "  riegeli_options: A string with riegeli/records writer options. "
+          "See\n"
+          "    "
+          "https://github.com/google/riegeli/blob/master/doc/"
+          "record_writer_options.md\n"
+          "    for details. If not provided, default options will be used.\n\n"
+          "Returns:\n"
+          "  A bytes object containing the serialized data in riegeli "
+          "format."));
+
+  m.def(
+      "riegeli_loads_many",
+      [](py::bytes data) {
+        const auto data_view = py::cast<absl::string_view>(data);
+        absl::StatusOr<DecodeResult> result;
+        {
+          py::gil_scoped_release guard;
+          result = DecodeFromRiegeliData(data_view);
+        }
+        pybind11_throw_if_error(result.status());
+        return std::pair(std::move(result->values), std::move(result->exprs));
+      },
+      py::arg("data"), py::pos_only(),
+      py::doc("riegeli_loads_many(data, /)\n"
+              "--\n\n"
+              "Decodes values and expressions from riegeli container data."));
   // go/keep-sorted end
 }
 

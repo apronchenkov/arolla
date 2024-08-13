@@ -26,6 +26,7 @@ cc_library(
     srcs = [
         "py_object_as_status_payload.cc",
         "py_utils.cc",
+        "py_utils_unsafe_internal.c",
     ],
     hdrs = [
         "py_object_as_status_payload.h",
@@ -72,6 +73,7 @@ pybind_extension(
     deps = [
         ":py_utils",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:cord",
         "@com_google_absl//absl/strings:string_view",
     ],
 )

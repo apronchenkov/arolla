@@ -20,6 +20,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/string_view.h"
 #include "arolla/expr/annotation_expr_operators.h"
 #include "arolla/expr/basic_expr_operator.h"
@@ -34,17 +35,17 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/testing/qtype.h"
 #include "arolla/qtype/typed_value.h"
+#include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla::expr {
 namespace {
 
+using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::testing::EqualsAttr;
 using ::arolla::testing::EqualsExpr;
-using ::arolla::testing::IsOk;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::arolla::testing::TypedValueWith;
 using ::arolla::testing::WithNameAnnotation;
 using ::arolla::testing::WithQTypeAnnotation;
@@ -58,7 +59,7 @@ using ::testing::UnorderedElementsAre;
 using Attr = ::arolla::expr::ExprAttributes;
 
 class QTypeMetadataTest : public ::testing::Test {
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(QTypeMetadataTest, GetExprQType_LeafWithoutQType) {
@@ -238,31 +239,13 @@ TEST_F(QTypeMetadataTest, PopulateQType_QTypeMismatch) {
               "inconsistent annotation.qtype(expr: FLOAT32, qtype=INT32)")));
 }
 
-TEST_F(QTypeMetadataTest, BackendWrappingOperator) {
+TEST_F(QTypeMetadataTest, PopulateQType_TypesUnsupportedByOperator) {
   ASSERT_OK_AND_ASSIGN(ExprNodePtr expr,
                        CallOp("math.add", {Leaf("a"), Leaf("b")}));
-  {
-    // Same type of arguments.
-    ASSERT_OK_AND_ASSIGN(ExprNodePtr typed_expr,
-                         PopulateQTypes(expr, {{"a", GetQType<double>()},
-                                               {"b", GetQType<float>()}}));
-    EXPECT_EQ(typed_expr->qtype(), GetQType<double>());
-  }
-  {
-    // Different types, have a common type.
-    ASSERT_OK_AND_ASSIGN(ExprNodePtr typed_expr,
-                         PopulateQTypes(expr, {{"a", GetQType<float>()},
-                                               {"b", GetQType<float>()}}));
-    EXPECT_EQ(typed_expr->qtype(), GetQType<float>());
-  }
-  {
-    // Different types, no common type.
-    EXPECT_THAT(
-        PopulateQTypes(expr,
-                       {{"a", GetQType<int32_t>()}, {"b", GetQType<float>()}}),
-        StatusIs(absl::StatusCode::kInvalidArgument,
-                 HasSubstr("incompatible types x: INT32 and y: FLOAT32")));
-  }
+  EXPECT_THAT(PopulateQTypes(
+                  expr, {{"a", GetQType<int32_t>()}, {"b", GetQType<Bytes>()}}),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("expected numerics, got y: BYTES")));
 }
 
 TEST_F(QTypeMetadataTest, GetExprAttrs) {

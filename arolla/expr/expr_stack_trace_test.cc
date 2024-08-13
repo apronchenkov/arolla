@@ -14,7 +14,6 @@
 //
 #include "arolla/expr/expr_stack_trace.h"
 
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "arolla/util/fingerprint.h"
 #include "arolla/util/init_arolla.h"
@@ -24,7 +23,7 @@ namespace {
 
 class ExprStackTraceTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(ExprStackTraceTest, ExprStackTraceSafeReturnsOnUnregisteredFingerprint) {

@@ -20,6 +20,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/array/array.h"
 #include "arolla/array/edge.h"
 #include "arolla/array/qtype/types.h"
@@ -33,13 +34,12 @@
 #include "arolla/qtype/typed_value.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/testing/repr_token_eq.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 namespace {
 
+using ::absl_testing::StatusIs;
 using ::arolla::testing::ReprTokenEq;
-using ::arolla::testing::StatusIs;
 
 TEST(QTypeTest, TypedValueRepr) {
   ASSERT_OK_AND_ASSIGN(
@@ -51,14 +51,14 @@ TEST(QTypeTest, TypedValueRepr) {
 }
 
 TEST(QTypeTest, JaggedArrayShapeQType) {
-  QTypePtr type = GetQType<JaggedArrayShapePtr>();
+  QTypePtr type = GetQType<JaggedArrayShape>();
   EXPECT_NE(type, nullptr);
   EXPECT_EQ(type->name(), "JAGGED_ARRAY_SHAPE");
-  EXPECT_EQ(type->type_info(), typeid(JaggedArrayShapePtr));
+  EXPECT_EQ(type->type_info(), typeid(JaggedArrayShape));
   EXPECT_EQ(type->value_qtype(), nullptr);
   EXPECT_TRUE(IsJaggedShapeQType(type));
-  EXPECT_EQ(type, GetQType<JaggedArrayShapePtr>());
-  EXPECT_NE(type, GetQType<JaggedDenseArrayShapePtr>());
+  EXPECT_EQ(type, GetQType<JaggedArrayShape>());
+  EXPECT_NE(type, GetQType<JaggedDenseArrayShape>());
 }
 
 TEST(QTypeTest, JaggedArrayShapeFingerprint) {
@@ -95,12 +95,12 @@ TEST(QTypeTest, CopyTo) {
 }
 
 TEST(QTypeTest, JaggedShapeQTypeFromEdgeQType) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   {
     // Registered type.
     ASSERT_OK_AND_ASSIGN(auto shape_qtype, GetJaggedShapeQTypeFromEdgeQType(
                                                GetQType<ArrayEdge>()));
-    EXPECT_EQ(shape_qtype, GetQType<JaggedArrayShapePtr>());
+    EXPECT_EQ(shape_qtype, GetQType<JaggedArrayShape>());
   }
   {
     // Not registered type.
@@ -119,7 +119,7 @@ TEST(QTypeTest, JaggedShapeQTypeFromEdgeQType) {
 }
 
 TEST(QTypeTest, EdgeQType) {
-  QTypePtr type = GetQType<JaggedArrayShapePtr>();
+  QTypePtr type = GetQType<JaggedArrayShape>();
   auto shape_qtype = dynamic_cast<const JaggedShapeQType*>(type);
   EXPECT_EQ(shape_qtype->edge_qtype(), GetQType<ArrayEdge>());
 }

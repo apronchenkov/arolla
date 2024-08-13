@@ -25,6 +25,7 @@
 #include "gtest/gtest.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/array/qtype/types.h"
 #include "arolla/dense_array/qtype/types.h"
@@ -54,16 +55,16 @@
 #include "arolla/qtype/testing/qtype.h"
 #include "arolla/qtype/typed_slot.h"
 #include "arolla/qtype/typed_value.h"
+#include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/unit.h"
 
 namespace arolla::expr::eval_internal {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::testing::EqualsExpr;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::arolla::testing::TypedValueWith;
 using ::arolla::testing::WithNameAnnotation;
 using ::arolla::testing::WithQTypeAnnotation;
@@ -99,7 +100,7 @@ absl::StatusOr<std::unique_ptr<BoundExpr>> CompileExprWithTypes(
 class WhereOperatorTest
     : public ::testing::TestWithParam<DynamicEvaluationEngineOptions> {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 
   DynamicEvaluationEngineOptions GetOptions() const { return GetParam(); }
 };
@@ -381,9 +382,10 @@ TEST_P(WhereOperatorTest, WhereWithIncompatibleTypes) {
   EXPECT_THAT(CompileExprWithTypes(GetOptions(), expr,
                                    {{"cond", GetQType<OptionalUnit>()},
                                     {"x", GetQType<int32_t>()},
-                                    {"y", GetQType<float>()}}),
+                                    {"y", GetQType<Bytes>()}}),
               StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("no common QType for (INT32,FLOAT32)")));
+                       HasSubstr("incompatible types true_branch: INT32 and "
+                                 "false_branch: BYTES")));
 }
 
 TEST_P(WhereOperatorTest, WhereWithExpressions) {

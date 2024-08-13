@@ -35,6 +35,7 @@
 
 using ::arolla::InitArolla;
 using ::arolla::serialization::Decode;
+using ::arolla::serialization::DecodingOptions;
 using ::arolla::serialization_base::ContainerProto;
 
 int main(int argc, char** argv) {
@@ -42,9 +43,7 @@ int main(int argc, char** argv) {
   if (filenames.size() == 1) {
     LOG(FATAL) << "Usage: file_expr.pb ...";
   }
-  if (auto status = InitArolla(); !status.ok()) {
-    LOG(FATAL) << "InitArolla: " << status;
-  }
+  InitArolla();
   for (size_t i = 1; i < filenames.size(); ++i) {
     const char* const filename = filenames[i];
     std::ifstream istream(filename, std::ifstream::in | std::ifstream::binary);
@@ -57,8 +56,9 @@ int main(int argc, char** argv) {
       LOG(FATAL) << "Unable to parse: " << filename;
     }
 
-    const auto decode_result = Decode(
-        container_proto, {.generate_metadata_for_operator_nodes = false});
+    const auto decode_result =
+        Decode(container_proto,
+               DecodingOptions{.infer_attributes_for_operator_nodes = false});
     if (!decode_result.ok()) {
       LOG(FATAL) << "Unable to parse: " << filename << ";\n"
                  << decode_result.status();

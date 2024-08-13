@@ -19,7 +19,7 @@ load(
     "operator_overload",
 )
 
-package(default_visibility = ["//arolla:internal"])
+package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
@@ -28,8 +28,10 @@ operator_lib_list = [
     ":operator_jagged_array_shape_add_dims",
     ":operator_jagged_array_shape_edge_at",
     ":operator_jagged_array_shape_edges",
+    ":operator_jagged_array_shape_equal",
     ":operator_jagged_array_shape_flatten",
     ":operator_jagged_array_shape_from_edges",
+    ":operator_jagged_array_shape_is_broadcastable_to",
     ":operator_jagged_array_shape_rank",
     ":operator_jagged_array_shape_remove_dims",
     ":operator_jagged_array_shape_size",
@@ -83,7 +85,7 @@ operator_libraries(
     operator_name = "jagged.rank",
     overloads = [operator_overload(
         hdrs = ["shape_operators.h"],
-        args = ("::arolla::JaggedArrayShapePtr",),
+        args = ("::arolla::JaggedArrayShape",),
         op_class = "::arolla::JaggedArrayShapeRankOp",
         deps = [":lib"],
     )],
@@ -94,7 +96,7 @@ operator_libraries(
     operator_name = "jagged.edge_at",
     overloads = [operator_overload(
         hdrs = ["shape_operators.h"],
-        args = ("::arolla::JaggedArrayShapePtr", "int64_t"),
+        args = ("::arolla::JaggedArrayShape", "int64_t"),
         op_class = "::arolla::JaggedArrayShapeEdgeAtOp",
         deps = [":lib"],
     )],
@@ -105,7 +107,7 @@ operator_libraries(
     operator_name = "jagged.remove_dims",
     overloads = [operator_overload(
         hdrs = ["shape_operators.h"],
-        args = ("::arolla::JaggedArrayShapePtr", "int64_t"),
+        args = ("::arolla::JaggedArrayShape", "int64_t"),
         op_class = "::arolla::JaggedArrayShapeRemoveDimsOp",
         deps = [":lib"],
     )],
@@ -116,7 +118,7 @@ operator_libraries(
     operator_name = "jagged._flatten",
     overloads = [operator_overload(
         hdrs = ["shape_operators.h"],
-        args = ("::arolla::JaggedArrayShapePtr", "int64_t", "int64_t"),
+        args = ("::arolla::JaggedArrayShape", "int64_t", "int64_t"),
         op_class = "::arolla::JaggedArrayShapeFlattenOp",
         deps = [":lib"],
     )],
@@ -135,8 +137,30 @@ operator_libraries(
     operator_name = "jagged.size",
     overloads = [operator_overload(
         hdrs = ["shape_operators.h"],
-        args = ("::arolla::JaggedArrayShapePtr",),
+        args = ("::arolla::JaggedArrayShape",),
         op_class = "::arolla::JaggedArrayShapeSizeOp",
+        deps = [":lib"],
+    )],
+)
+
+operator_libraries(
+    name = "operator_jagged_array_shape_is_broadcastable_to",
+    operator_name = "jagged.is_broadcastable_to",
+    overloads = [operator_overload(
+        hdrs = ["shape_operators.h"],
+        args = ("::arolla::JaggedArrayShape", "::arolla::JaggedArrayShape"),
+        op_class = "::arolla::JaggedArrayShapeIsBroadcastableToOp",
+        deps = [":lib"],
+    )],
+)
+
+operator_libraries(
+    name = "operator_jagged_array_shape_equal",
+    operator_name = "jagged.equal",
+    overloads = [operator_overload(
+        hdrs = ["shape_operators.h"],
+        args = ("::arolla::JaggedArrayShape", "::arolla::JaggedArrayShape"),
+        op_class = "::arolla::JaggedArrayShapeEqualOp",
         deps = [":lib"],
     )],
 )

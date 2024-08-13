@@ -61,33 +61,8 @@ struct SimpleCountAccumulator
 
 using SimpleCountAggregator =
     SimpleCountAccumulator<AccumulatorType::kAggregator>;
-
-// AggCount Accumulator definition.
-template <AccumulatorType TYPE>
-struct CountAccumulator
-    : Accumulator<TYPE, OptionalValue<int64_t>, meta::type_list<>,
-                  meta::type_list<Unit>> {
-  explicit CountAccumulator(OptionalValue<int64_t> initial = 0)
-      : initial(initial) {}
-
-  void Reset() final { accumulator = 0; }
-  void Add(Unit) final { accumulator += 1; }
-  void AddN(int64_t n, Unit) final { accumulator += n; }
-  OptionalValue<int64_t> GetResult() final {
-    if (initial.present) {
-      return initial.value + accumulator;
-    } else if (accumulator > 0) {
-      return accumulator;
-    } else {
-      return std::nullopt;
-    }
-  }
-
-  int64_t accumulator{0};
-  OptionalValue<int64_t> initial;
-};
-
-using CountPartialAccumulator = CountAccumulator<AccumulatorType::kPartial>;
+using CountPartialAccumulator =
+    SimpleCountAccumulator<AccumulatorType::kPartial>;
 
 // AnyAccumulator applies core.agg_any.
 template <AccumulatorType TYPE>
@@ -226,6 +201,49 @@ template <typename ValueT>
 using SumAggregator = SumAccumulator<ValueT, AccumulatorType::kAggregator>;
 template <typename ValueT>
 using SumPartialAccumulator = SumAccumulator<ValueT, AccumulatorType::kPartial>;
+
+// TODO: Consider implementing this using the iterative mean
+// algorithm to avoid over- and underflows.
+template <typename ValueT, AccumulatorType AccumulatorType>
+struct MeanAccumulator
+    : Accumulator<AccumulatorType, OptionalValue<ValueT>, meta::type_list<>,
+                  meta::type_list<ValueT>> {
+  using SumAccumulatorT = typename WideAccumulator<ValueT>::type;
+
+  MeanAccumulator() = default;
+
+  void Reset() final {
+    accumulator_sum = 0;
+    accumulator_count = 0;
+  }
+
+  void Add(ValueT value) final {
+    accumulator_sum =
+        AddOp()(accumulator_sum, static_cast<SumAccumulatorT>(value));
+    accumulator_count += 1;
+  }
+  void AddN(int64_t n, ValueT value) final {
+    accumulator_sum = AddOp()(accumulator_sum,
+                              MultiplyOp()(static_cast<SumAccumulatorT>(value),
+                                           static_cast<SumAccumulatorT>(n)));
+    accumulator_count += n;
+  }
+  OptionalValue<ValueT> GetResult() final {
+    if (accumulator_count == 0) {
+      return std::nullopt;
+    }
+    // NOTE: Casting before division in order to exactly match previous
+    // behavior.
+    return DivideOp()(static_cast<ValueT>(accumulator_sum),
+                      static_cast<ValueT>(accumulator_count));
+  }
+
+  int64_t accumulator_count;
+  SumAccumulatorT accumulator_sum;
+};
+
+template <typename ValueT>
+using MeanAggregator = MeanAccumulator<ValueT, AccumulatorType::kAggregator>;
 
 // TODO: renew this class comment.
 template <typename ValueT, AccumulatorType AccumulatorType, typename FunctorT,

@@ -18,30 +18,30 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "arolla/dense_array/qtype/types.h"
 #include "arolla/qtype/base_types.h"
 #include "arolla/qtype/dict/dict_types.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/typed_ref.h"
 #include "arolla/qtype/typed_value.h"
-#include "arolla/serialization/encode.h"
-#include "arolla/serialization_base/encode.h"
+#include "arolla/serialization_base/encoder.h"
 #include "arolla/serialization_codecs/dict/codec_name.h"
 #include "arolla/serialization_codecs/dict/dict_codec.pb.h"
+#include "arolla/serialization_codecs/registry.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::serialization_codecs {
 namespace {
 
-using ::arolla::serialization::RegisterValueEncoderByQValueSpecialisationKey;
 using ::arolla::serialization_base::Encoder;
 using ::arolla::serialization_base::ValueProto;
-using ::arolla::serialization_codecs::DictV1Proto;
 
-ValueProto GenValueProto(Encoder& encoder) {
+absl::StatusOr<ValueProto> GenValueProto(Encoder& encoder) {
+  ASSIGN_OR_RETURN(auto codec_index, encoder.EncodeCodec(kDictV1Codec));
   ValueProto value_proto;
-  value_proto.set_codec_index(encoder.EncodeCodec(kDictV1Codec));
+  value_proto.set_codec_index(codec_index);
   return value_proto;
 }
 
@@ -50,10 +50,10 @@ absl::StatusOr<ValueProto> EncodeKeyToRowDictQType(
   DCHECK(IsKeyToRowDictQType(key_to_row_dict_qtype));
   QTypePtr key_qtype = key_to_row_dict_qtype->value_qtype();
   DCHECK_NE(key_qtype, nullptr);
-  auto value_proto = GenValueProto(encoder);
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(DictV1Proto::extension)
       ->mutable_key_to_row_dict_qtype();
-  ASSIGN_OR_RETURN(int64_t key_qtype_value_index,
+  ASSIGN_OR_RETURN(auto key_qtype_value_index,
                    encoder.EncodeValue(TypedValue::FromValue(key_qtype)));
   value_proto.add_input_value_indices(key_qtype_value_index);
   return value_proto;
@@ -70,11 +70,11 @@ absl::StatusOr<ValueProto> EncodeDictQType(QTypePtr dict_qtype,
     return absl::FailedPreconditionError(absl::StrFormat(
         "unable to infer value_qtype of %s", dict_qtype->name()));
   }
-  auto value_proto = GenValueProto(encoder);
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   value_proto.MutableExtension(DictV1Proto::extension)->mutable_dict_qtype();
-  ASSIGN_OR_RETURN(int64_t key_qtype_value_index,
+  ASSIGN_OR_RETURN(auto key_qtype_value_index,
                    encoder.EncodeValue(TypedValue::FromValue(key_qtype)));
-  ASSIGN_OR_RETURN(int64_t value_qtype_value_index,
+  ASSIGN_OR_RETURN(auto value_qtype_value_index,
                    encoder.EncodeValue(TypedValue::FromValue(value_qtype)));
   value_proto.add_input_value_indices(key_qtype_value_index);
   value_proto.add_input_value_indices(value_qtype_value_index);
@@ -97,18 +97,21 @@ absl::StatusOr<ValueProto> EncodeDict(TypedRef value, Encoder& encoder) {
       kDictV1Codec, value.GetType()->name(), value.Repr()));
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterSerializationCodecs, register_serialization_codecs_dict_v1_encoder,
-    []() -> absl::Status {
-      auto* key_to_row_dict_qtype = GetKeyToRowDictQType<int64_t>();
-      ASSIGN_OR_RETURN(auto* dict_qtype, (GetDictQType(GetQType<int64_t>(),
-                                                       GetQType<int64_t>())));
-      RETURN_IF_ERROR(RegisterValueEncoderByQValueSpecialisationKey(
-          key_to_row_dict_qtype->qtype_specialization_key(), EncodeDict));
-      RETURN_IF_ERROR(RegisterValueEncoderByQValueSpecialisationKey(
-          dict_qtype->qtype_specialization_key(), EncodeDict));
-      return absl::OkStatus();
-    });
+AROLLA_INITIALIZER(
+        .reverse_deps = {arolla::initializer_dep::kS11n},
+        .init_fn = []() -> absl::Status {
+          // Ensure the DENSE_ARRAY_INT64 qtype registration.
+          GetDenseArrayQType<int64_t>();
+          auto* key_to_row_dict_qtype = GetKeyToRowDictQType<int64_t>();
+          ASSIGN_OR_RETURN(
+              auto* dict_qtype,
+              (GetDictQType(GetQType<int64_t>(), GetQType<int64_t>())));
+          RETURN_IF_ERROR(RegisterValueEncoderByQValueSpecialisationKey(
+              key_to_row_dict_qtype->qtype_specialization_key(), EncodeDict));
+          RETURN_IF_ERROR(RegisterValueEncoderByQValueSpecialisationKey(
+              dict_qtype->qtype_specialization_key(), EncodeDict));
+          return absl::OkStatus();
+        })
 
 }  // namespace
 }  // namespace arolla::serialization_codecs

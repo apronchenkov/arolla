@@ -2,9 +2,12 @@
 // Build target:
 // //arolla/codegen/io/testing:test_struct_input_loader
 
+#include <memory>
+
 #include "arolla/codegen/io/multi_loader.h"
 #include "arolla/codegen/io/testing/test_native_struct.h"
 #include "arolla/codegen/io/testing/test_proto_qtype.h"
+#include "arolla/codegen/qtype_utils.h"
 #include "arolla/io/accessors_input_loader.h"
 #include "arolla/io/input_loader.h"
 #include "arolla/io/wildcard_input_loader.h"
@@ -22,7 +25,6 @@ using ::arolla::ChainInputLoader;
 using ::arolla::FramePtr;
 using ::arolla::GetQType;
 using ::arolla::InputLoader;
-using ::arolla::InputLoaderPtr;
 using ::arolla::QTypePtr;
 using ::arolla::RawBufferFactory;
 using ::arolla::TypedSlot;
@@ -38,7 +40,6 @@ namespace {
 namespace single_value_protopath {
 
 using ::arolla::codegen::io::kSkippedOffset;
-using ::arolla::codegen::io::NamedTypesBuilder;
 
 // In this namespace protopath inputs with `OptionalValue` and `DenseArrayShape`
 // are being loaded.
@@ -241,25 +242,48 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
  public:
   Loader()
       : ::arolla::StaticInputLoader<Input>(
-            // use special builder to reduce binary size and stack pressure
+            // Use special builder to reduce binary size and stack pressure.
             []() {
-              NamedTypesBuilder builder;
-              builder.Add(R"RL_CODEGEN_DELIM(/inner/a)RL_CODEGEN_DELIM",
-                          ::arolla::GetQType<ResultType_0>());
-              builder.Add(R"RL_CODEGEN_DELIM(/inner_proto)RL_CODEGEN_DELIM",
-                          ::arolla::GetQType<ResultType_1>());
-              builder.Add(R"RL_CODEGEN_DELIM(/inner_proto/a)RL_CODEGEN_DELIM",
-                          ::arolla::GetQType<ResultType_2>());
-              builder.Add(R"RL_CODEGEN_DELIM(/x)RL_CODEGEN_DELIM",
-                          ::arolla::GetQType<ResultType_3>());
-              builder.Add(R"RL_CODEGEN_DELIM(raw_bytes)RL_CODEGEN_DELIM",
-                          ::arolla::GetQType<ResultType_4>());
-              builder.Add(R"RL_CODEGEN_DELIM(str)RL_CODEGEN_DELIM",
-                          ::arolla::GetQType<ResultType_5>());
+              ::arolla::codegen::NamedQTypeVectorBuilder builder;
+              builder.AddFromCommonPrefixWithPrevious(
+                  // /inner/a
+                  8, R"RL_CODEGEN_DELIM(/inner/a)RL_CODEGEN_DELIM",
+                  ::arolla::GetQType<ResultType_0>());
+              builder.AddFromCommonPrefixWithPrevious(
+                  // /inner_proto
+                  12, R"RL_CODEGEN_DELIM(_proto)RL_CODEGEN_DELIM",
+                  ::arolla::GetQType<ResultType_1>());
+              builder.AddFromCommonPrefixWithPrevious(
+                  // /inner_proto/a
+                  14, R"RL_CODEGEN_DELIM(/a)RL_CODEGEN_DELIM",
+                  ::arolla::GetQType<ResultType_2>());
+              builder.AddFromCommonPrefixWithPrevious(
+                  // /x
+                  2, R"RL_CODEGEN_DELIM(x)RL_CODEGEN_DELIM",
+                  ::arolla::GetQType<ResultType_3>());
+              builder.AddFromCommonPrefixWithPrevious(
+                  // raw_bytes
+                  9, R"RL_CODEGEN_DELIM(raw_bytes)RL_CODEGEN_DELIM",
+                  ::arolla::GetQType<ResultType_4>());
+              builder.AddFromCommonPrefixWithPrevious(
+                  // str
+                  3, R"RL_CODEGEN_DELIM(str)RL_CODEGEN_DELIM",
+                  ::arolla::GetQType<ResultType_5>());
               return std::move(builder).Build();
             }()) {}
 
  private:
+  auto CreateProtopathTree() const {
+    return []() {
+      std::vector<std::vector<size_t>> tree(10);
+      tree[1] = {0};
+      tree[2] = {1};
+      tree[5] = {3, 4};
+      tree[9] = {2, 5, 6, 7, 8};
+      return tree;
+    }();
+  }
+
   StatusOr<BoundInputLoader<Input>> BindImpl(
       const absl::flat_hash_map<std::string, TypedSlot>& output_slots)
       const final {
@@ -268,21 +292,14 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
         ::arolla::MaybeFindSlotsAndVerifyTypes(types_in_order(), output_slots));
     // Allocate on heap to reduce stack pressure.
     auto inputs = std::make_unique<HierarchicalSingleValueRequestedInputs>();
-    auto tree = []() {
-      std::vector<std::vector<size_t>> tree(10);
-      tree[1] = {0};
-      tree[2] = {1};
-      tree[5] = {3, 4};
-      tree[9] = {2, 5, 6, 7, 8};
-      return tree;
-    }();
+    auto tree = CreateProtopathTree();
     CreateHierarchicalSingleValueRequestedInputs(optional_slots,
                                                  /*size_leaves=*/{}, tree,
                                                  inputs.get());
     return BoundInputLoader<Input>(
-        [inputs = std::move(*inputs)](const Input& input, FramePtr frame,
-                                      RawBufferFactory*) {
-          OutputProvider output_getter{&inputs, frame};
+        [inputs = std::move(inputs)](const Input& input, FramePtr frame,
+                                     RawBufferFactory*) {
+          OutputProvider output_getter{inputs.get(), frame};
           SlotSetter slot_setter;
           slot_setter.CollectResults(input, output_getter);
           return OkStatus();
@@ -316,7 +333,7 @@ constexpr auto GetAllShardsInputLoader =
 
 namespace my_namespace {
 
-::arolla::InputLoaderPtr<::testing_namespace::RootNativeStruct>
+std::unique_ptr<InputLoader<::testing_namespace::RootNativeStruct>>
 GetStructLoader() {
   return MakeNotOwningInputLoader(
       ::my_namespace_GetStructLoaderImplNamespace::GetAllShardsInputLoader());

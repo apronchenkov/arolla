@@ -14,6 +14,7 @@
 //
 #include "py/arolla/types/s11n/py_object_decoder.h"
 
+#include <string>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -30,8 +31,8 @@
 #include "arolla/expr/expr_node.h"
 #include "arolla/expr/expr_operator_signature.h"
 #include "arolla/qtype/typed_value.h"
-#include "arolla/serialization/decode.h"
-#include "arolla/serialization_base/decode.h"
+#include "arolla/serialization_base/decoder.h"
+#include "arolla/serialization_codecs/registry.h"
 #include "arolla/util/indestructible.h"
 #include "arolla/util/status_macros_backport.h"
 
@@ -40,10 +41,10 @@ namespace {
 
 using ::arolla::expr::ExprNodePtr;
 using ::arolla::expr::ExprOperatorSignature;
-using ::arolla::serialization::RegisterValueDecoder;
 using ::arolla::serialization_base::NoExtensionFound;
 using ::arolla::serialization_base::ValueDecoderResult;
 using ::arolla::serialization_base::ValueProto;
+using ::arolla::serialization_codecs::RegisterValueDecoder;
 
 absl::StatusOr<TypedValue> DecodePyObjectValue(
     const PyObjectV1Proto::PyObjectProto& py_object_value) {

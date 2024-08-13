@@ -18,36 +18,32 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/dense_array/dense_array.h"
 #include "arolla/dense_array/qtype/types.h"
 #include "arolla/memory/optional_value.h"
 #include "arolla/qexpr/operators.h"
 #include "arolla/qtype/base_types.h"
-#include "arolla/qtype/strings/regex.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/text.h"
 #include "arolla/util/unit.h"
 
-using ::testing::HasSubstr;
-
 namespace arolla {
+namespace {
 
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::HasSubstr;
 
-namespace {
-
 class StringsTest : public ::testing::Test {
-  void SetUp() final { ASSERT_OK(InitArolla()); }
+  void SetUp() final { InitArolla(); }
 };
 
 TEST_F(StringsTest, AsText) {
   EXPECT_THAT(InvokeOperator<Text>("strings.as_text", kUnit),
-              IsOkAndHolds(Text("unit")));
+              IsOkAndHolds(Text("present")));
   EXPECT_THAT(InvokeOperator<Text>("strings.as_text", Text("text")),
               IsOkAndHolds(Text("text")));
   EXPECT_THAT(InvokeOperator<Text>("strings.as_text",
@@ -143,54 +139,6 @@ TEST_F(StringsTest, TextLength) {
   EXPECT_THAT(
       InvokeOperator<int32_t>("strings.length", Text("古池や蛙飛び込む水の音")),
       IsOkAndHolds(11));
-}
-
-TEST_F(StringsTest, ContainsRegex) {
-  ASSERT_OK_AND_ASSIGN(
-      Regex regex, InvokeOperator<Regex>("strings._compile_regex",
-                                         Text("^\\d{1,3} bottles of beer")));
-
-  EXPECT_THAT(InvokeOperator<OptionalUnit>("strings._contains_regex",
-                                           Text("999 bottles of beer"), regex),
-              IsOkAndHolds(kPresent));
-
-  EXPECT_THAT(InvokeOperator<OptionalUnit>("strings._contains_regex",
-                                           Text("1000 bottles of beer"), regex),
-              IsOkAndHolds(kMissing));
-}
-
-TEST_F(StringsTest, ExtractRegex) {
-  using OT = OptionalValue<Text>;
-
-  // Regular expression with one capture group.
-  ASSERT_OK_AND_ASSIGN(
-      Regex regex1,
-      InvokeOperator<Regex>("strings._compile_regex", Text("bar:(\\w*)")));
-  EXPECT_THAT(InvokeOperator<OT>("strings._extract_regex",
-                                 Text("foo:abc, bar:def, baz:ghi"), regex1),
-              IsOkAndHolds(Text("def")));
-  EXPECT_THAT(InvokeOperator<OT>("strings._extract_regex",
-                                 Text("foo:abc, baz:ghi"), regex1),
-              IsOkAndHolds(OT{}));
-
-  // Regular expression with no capture group.
-  ASSERT_OK_AND_ASSIGN(
-      Regex regex2,
-      InvokeOperator<Regex>("strings._compile_regex", Text("bar:\\w*")));
-
-  EXPECT_THAT(
-      InvokeOperator<OT>("strings._extract_regex",
-                         Text("foo:abc, bar:def, baz:ghi"), regex2),
-      StatusIs(
-          absl::StatusCode::kInvalidArgument,
-          HasSubstr(
-              "expected regular expression with exactly one capturing group")));
-}
-
-TEST_F(StringsTest, InvalidRegex) {
-  EXPECT_THAT(InvokeOperator<Regex>("strings._compile_regex", Text("ab\\αcd")),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Invalid regular expression: \"ab\\αcd\"; ")));
 }
 
 }  // namespace

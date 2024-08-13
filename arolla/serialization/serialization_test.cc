@@ -17,7 +17,9 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "arolla/array/array.h"
 #include "arolla/array/qtype/types.h"
 #include "arolla/dense_array/dense_array.h"
@@ -35,24 +37,29 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/tuple_qtype.h"
 #include "arolla/qtype/typed_value.h"
+#include "arolla/qtype/unspecified_qtype.h"
 #include "arolla/qtype/weak_qtype.h"
 #include "arolla/serialization/decode.h"
 #include "arolla/serialization/encode.h"
+#include "arolla/serialization/utils.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
+#include "arolla/util/text.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::serialization {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::ExprOperatorPtr;
+using ::arolla::expr::Leaf;
 using ::arolla::expr::MakeTupleOperator;
 using ::arolla::testing::EqualsExpr;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::Pair;
 using ::testing::Truly;
+using ::testing::UnorderedElementsAre;
 
 auto EqualsTypedValue(const TypedValue& expected_value) {
   return Truly([expected_value](const TypedValue& actual_value) {
@@ -133,7 +140,7 @@ absl::StatusOr<expr::ExprNodePtr> GenExpr() {
 }
 
 class SerializationTest : public ::testing::Test {
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(SerializationTest, Basic) {
@@ -175,6 +182,77 @@ TEST_F(SerializationTest, DecodeValue) {
                 StatusIs(absl::StatusCode::kInvalidArgument,
                          "unable to decode value: expected 1 value "
                          "and 0 expressions in the container, got 1 and 1"));
+  }
+}
+
+TEST_F(SerializationTest, DecodeExprSet) {
+  constexpr auto text = [](absl::string_view str) {
+    return TypedValue::FromValue(Text(str));
+  };
+  {
+    ASSERT_OK_AND_ASSIGN(auto container_proto, Encode({}, {}));
+    EXPECT_THAT(DecodeExprSet(container_proto),
+                IsOkAndHolds(UnorderedElementsAre()));
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(auto container_proto,
+                         Encode({text("name1"), text("name2"), text("default")},
+                                {Leaf("x"), Leaf("y"), Leaf("z")}));
+    EXPECT_THAT(DecodeExprSet(container_proto),
+                IsOkAndHolds(UnorderedElementsAre(
+                    Pair("name1", EqualsExpr(Leaf("x"))),
+                    Pair("name2", EqualsExpr(Leaf("y"))),
+                    Pair("default", EqualsExpr(Leaf("z"))))));
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(auto container_proto,
+                         Encode({text("name1"), text("name2")}, {Leaf("x")}));
+    EXPECT_THAT(DecodeExprSet(container_proto),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         "the number of expressions does not match the number "
+                         "of values: 1 != 2"));
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(auto container_proto,
+                         Encode({GetUnspecifiedQValue()}, {Leaf("x")}));
+    EXPECT_THAT(DecodeExprSet(container_proto),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         "expected all values in the container to be TEXTs, "
+                         "got UNSPECIFIED"));
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(auto container_proto,
+                         Encode({text("name1"), text("name2"), text("name1")},
+                                {Leaf("x"), Leaf("y"), Leaf("z")}));
+    EXPECT_THAT(DecodeExprSet(container_proto),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         "duplicated names in the container: \"name1\""));
+  }
+}
+
+TEST_F(SerializationTest, EncodeExprSet) {
+  constexpr auto text = [](absl::string_view str) {
+    return TypedValue::FromValue(Text(str));
+  };
+  {
+    ASSERT_OK_AND_ASSIGN(auto container_proto, EncodeExprSet({}));
+    ASSERT_OK_AND_ASSIGN(auto decode_result, Decode(container_proto));
+    EXPECT_THAT(decode_result.values, ElementsAre());
+    EXPECT_THAT(decode_result.exprs, ElementsAre());
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(auto container_proto,
+                         EncodeExprSet({{"name1", Leaf("x")},
+                                        {"name2", Leaf("y")},
+                                        {"default", Leaf("z")}}));
+    ASSERT_OK_AND_ASSIGN(auto decode_result, Decode(container_proto));
+    EXPECT_THAT(decode_result.values,
+                ElementsAre(EqualsTypedValue(text("default")),
+                            EqualsTypedValue(text("name1")),
+                            EqualsTypedValue(text("name2"))));
+    EXPECT_THAT(decode_result.exprs,
+                ElementsAre(EqualsExpr(Leaf("z")), EqualsExpr(Leaf("x")),
+                            EqualsExpr(Leaf("y"))));
   }
 }
 

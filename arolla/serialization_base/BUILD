@@ -49,12 +49,15 @@ py_proto_library(
 cc_library(
     name = "serialization_base",
     srcs = [
-        "decode.cc",
-        "encode.cc",
+        "container_proto.cc",
+        "decoder.cc",
+        "encoder.cc",
     ],
     hdrs = [
-        "decode.h",
-        "encode.h",
+        "container.h",
+        "container_proto.h",
+        "decoder.h",
+        "encoder.h",
     ],
     local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
@@ -63,6 +66,7 @@ cc_library(
         "//arolla/qtype",
         "//arolla/util",
         "//arolla/util:status_backport",
+        "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
@@ -74,21 +78,36 @@ cc_library(
 )
 
 cc_test(
-    name = "decode_test",
+    name = "container_proto_test",
     srcs = [
-        "decode_test.cc",
+        "container_proto_test.cc",
+    ],
+    deps = [
+        ":base_cc_proto",
+        ":serialization_base",
+        "//arolla/util:status_backport",
+        "//arolla/util/testing",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "decoder_test",
+    srcs = [
+        "decoder_test.cc",
     ],
     deps = [
         ":base_cc_proto",
         ":serialization_base",
         "//arolla/expr",
         "//arolla/expr/testing",
-        "//arolla/expr/testing:test_operators",
         "//arolla/qtype",
         "//arolla/qtype/testing",
-        "//arolla/util/testing",
-        "@com_google_absl//absl/container:flat_hash_map",
+        "//arolla/util",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
@@ -97,9 +116,9 @@ cc_test(
 )
 
 cc_test(
-    name = "encode_test",
+    name = "encoder_test",
     srcs = [
-        "encode_test.cc",
+        "encoder_test.cc",
     ],
     deps = [
         ":base_cc_proto",
@@ -107,8 +126,10 @@ cc_test(
         "//arolla/expr",
         "//arolla/expr/testing:test_operators",
         "//arolla/qtype",
+        "//arolla/util",
         "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],

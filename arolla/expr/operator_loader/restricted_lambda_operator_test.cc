@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/expr/expr.h"
 #include "arolla/expr/expr_attributes.h"
@@ -33,7 +34,6 @@
 #include "arolla/qtype/typed_ref.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/text.h"
 #include "arolla/util/unit.h"
 #include "arolla/util/status_macros_backport.h"
@@ -41,6 +41,8 @@
 namespace arolla::operator_loader {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::CallOp;
 using ::arolla::expr::ExprOperatorSignature;
 using ::arolla::expr::LambdaOperator;
@@ -50,14 +52,12 @@ using ::arolla::expr::Placeholder;
 using ::arolla::expr::SuppressUnusedWarning;
 using ::arolla::testing::EqualsAttr;
 using ::arolla::testing::EqualsExpr;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::arolla::testing::WithQTypeAnnotation;
 using Attr = ::arolla::expr::ExprAttributes;
 
 class RestrictedLambdaOperatorTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 
   static absl::StatusOr<std::shared_ptr<LambdaOperator>> MakeBaseLambdaOp() {
     return expr::MakeLambdaOperator(

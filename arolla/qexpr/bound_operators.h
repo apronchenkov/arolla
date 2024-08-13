@@ -15,6 +15,7 @@
 #ifndef AROLLA_QEXPR_BOUND_OPERATORS_H_
 #define AROLLA_QEXPR_BOUND_OPERATORS_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
@@ -31,25 +32,31 @@
 
 namespace arolla {
 
-// Runs a sequence of bound operators with associated display names for each op.
-// Returns the index of the operator at which the execution stops. This would be
-// the operator which failed if the execution returned an error,
-// or the last operator if the execution finished successfully.
-inline int64_t RunBoundOperators(
+namespace internal {
+
+template <bool CheckInterrupt>
+inline int64_t RunBoundOperatorsImpl(
     absl::Span<const std::unique_ptr<BoundOperator>> ops,
     EvaluationContext* ctx, FramePtr frame) {
   DCHECK_OK(ctx->status());
   DCHECK_EQ(ctx->requested_jump(), 0);
   DCHECK(!ctx->signal_received());
   size_t ip = 0;
+  size_t last_check_interrupt_ip = 0;
   for (; ip < ops.size(); ++ip) {
     ops[ip]->Run(ctx, frame);
     // NOTE: consider making signal_received a mask once we have more than two
     // signals.
     if (ABSL_PREDICT_FALSE(ctx->signal_received())) {
+      if constexpr (CheckInterrupt) {
+        ctx->check_interrupt(ip - last_check_interrupt_ip + 1);
+      }
       if (ctx->requested_jump() != 0) {
         ip += ctx->requested_jump();
         DCHECK_LT(ip, ops.size());
+        if constexpr (CheckInterrupt) {
+          last_check_interrupt_ip = ip + 1;
+        }
       }
       if (!ctx->status().ok()) {
         return ip;
@@ -57,7 +64,23 @@ inline int64_t RunBoundOperators(
       ctx->ResetSignals();
     }
   }
+  if constexpr (CheckInterrupt) {
+    ctx->check_interrupt(ip - last_check_interrupt_ip);
+  }
   return ip - 1;
+}
+}  // namespace internal
+
+// Runs a sequence of bound operators with associated display names for each op.
+// Returns the index of the operator at which the execution stops. This would be
+// the operator which failed if the execution returned an error,
+// or the last operator if the execution finished successfully.
+inline int64_t RunBoundOperators(
+    absl::Span<const std::unique_ptr<BoundOperator>> ops,
+    EvaluationContext* ctx, FramePtr frame) {
+  return ctx->has_check_interrupt_fn()
+             ? internal::RunBoundOperatorsImpl<true>(ops, ctx, frame)
+             : internal::RunBoundOperatorsImpl<false>(ops, ctx, frame);
 }
 
 // Implementation of BoundOperator interface based on the provided functor.

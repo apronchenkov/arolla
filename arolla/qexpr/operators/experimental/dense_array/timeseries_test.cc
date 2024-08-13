@@ -20,6 +20,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/dense_array/dense_array.h"
 #include "arolla/dense_array/edge.h"
@@ -27,17 +28,16 @@
 #include "arolla/memory/buffer.h"
 #include "arolla/qexpr/operators.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 namespace {
 
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::ElementsAre;
 
 class AggMovingAverage : public ::testing::Test {
-  void SetUp() final { ASSERT_OK(InitArolla()); }
+  void SetUp() final { InitArolla(); }
 };
 
 absl::StatusOr<DenseArrayEdge> CreateEdgeFromSplitPoints(
@@ -117,7 +117,7 @@ TEST_F(AggMovingAverage, FullTimeSeriesWithTwoGroups) {
 }
 
 class ExponentialWeightedMovingAverageOpTest : public ::testing::Test {
-  void SetUp() final { ASSERT_OK(InitArolla()); }
+  void SetUp() final { InitArolla(); }
 };
 
 TEST_F(ExponentialWeightedMovingAverageOpTest, MissingValue_Adjust) {

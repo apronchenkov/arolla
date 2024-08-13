@@ -26,6 +26,7 @@
 #include "gtest/gtest.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "arolla/expr/expr.h"
@@ -43,7 +44,6 @@
 #include "arolla/util/fingerprint.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/struct_field.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/text.h"
 #include "arolla/util/status_macros_backport.h"
 
@@ -51,8 +51,8 @@ namespace arolla {
 
 namespace {
 
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 using ::testing::MatchesRegex;
 
@@ -469,7 +469,7 @@ TEST(CompileInplaceExprOnStructTest, SuccessStringsIO) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, TypeError) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   ASSERT_OK_AND_ASSIGN(
       expr::ExprNodePtr expr,
       expr::CallOp("annotation.qtype",
@@ -483,7 +483,7 @@ TEST(CompileDynamicExprOnStructInputTest, TypeError) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, UnknownLeaf) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   expr::ExprNodePtr expr = expr::Leaf("/unknown");
   EXPECT_THAT((ExprCompiler<TestStruct, std::optional<double>>())
                   .SetInputLoader(CreateStructInputLoader<TestStruct>())
@@ -494,7 +494,7 @@ TEST(CompileDynamicExprOnStructInputTest, UnknownLeaf) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, TypeErrorOnCodegenModel) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   TestCompiledExprWithOptionals compiled_expr;
   EXPECT_THAT((ExprCompiler<TestStruct, std::optional<double>>())
                   .SetInputLoader(CreateStructInputLoader<TestStruct>())
@@ -505,7 +505,7 @@ TEST(CompileDynamicExprOnStructInputTest, TypeErrorOnCodegenModel) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, Nested) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   ASSERT_OK_AND_ASSIGN(
       expr::ExprNodePtr expr,
       expr::CallOp("math.add",
@@ -523,7 +523,7 @@ TEST(CompileDynamicExprOnStructInputTest, Nested) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, SuccessXPlusYWithOptionals) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   ASSERT_OK_AND_ASSIGN(
       expr::ExprNodePtr expr,
       expr::CallOp("math.add", {expr::Leaf("/x"), expr::Leaf("/y")}));
@@ -541,7 +541,7 @@ TEST(CompileDynamicExprOnStructInputTest, SuccessXPlusYWithOptionals) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, ErrorStatus) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   absl::StatusOr<expr::ExprNodePtr> status_or_expr =
       absl::InternalError("input error");
   auto result =
@@ -553,7 +553,7 @@ TEST(CompileDynamicExprOnStructInputTest, ErrorStatus) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, SuccessXPlusYOnCodegenModel) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   TestCompiledExpr compiled_expr;
   ASSERT_OK_AND_ASSIGN(
       std::function<absl::StatusOr<double>(const TestStruct&)> eval_fn,
@@ -565,7 +565,7 @@ TEST(CompileDynamicExprOnStructInputTest, SuccessXPlusYOnCodegenModel) {
 }
 
 TEST(CompileDynamicExprOnStructInputTest, SuccessSideOutputOnCodegenModel) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   TestCompiledExpr compiled_expr;
   ASSERT_OK_AND_ASSIGN(
       std::function<absl::StatusOr<double>(const TestStruct&, TestStruct*)>
@@ -581,7 +581,7 @@ TEST(CompileDynamicExprOnStructInputTest, SuccessSideOutputOnCodegenModel) {
 }
 
 TEST(CompileDynamicExprOnStructWithBytesInputTest, SuccessUpper) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   ASSERT_OK_AND_ASSIGN(expr::ExprNodePtr title,
                        expr::CallOp("strings.decode", {expr::Leaf("/title")}));
   ASSERT_OK_AND_ASSIGN(

@@ -20,6 +20,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/dense_array/dense_array.h"
 #include "arolla/dense_array/qtype/types.h"
 #include "arolla/expr/derived_qtype_cast_operator.h"
@@ -33,22 +34,21 @@
 #include "arolla/qtype/weak_qtype.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla::expr_operators {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::CallOp;
 using ::arolla::expr::Leaf;
 using ::arolla::testing::EqualsExpr;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::arolla::testing::WithQTypeAnnotation;
 using ::testing::HasSubstr;
 
 class CastingRegistryTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(CastingRegistryTest, CommonType) {
@@ -68,9 +68,9 @@ TEST_F(CastingRegistryTest, CommonType) {
   EXPECT_THAT(
       reg->CommonType({GetQType<int32_t>(), GetOptionalQType<int64_t>()}),
       IsOkAndHolds(GetOptionalQType<int64_t>()));
-  EXPECT_THAT(reg->CommonType({GetQType<int32_t>(), GetQType<float>()}),
+  EXPECT_THAT(reg->CommonType({GetQType<int32_t>(), GetQType<Bytes>()}),
               StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("no common QType for (INT32,FLOAT32)")));
+                       HasSubstr("no common QType for (INT32,BYTES)")));
   EXPECT_THAT(reg->CommonType({GetQType<int32_t>(), GetQType<uint64_t>()}),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("no common QType for (INT32,UINT64)")));

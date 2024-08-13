@@ -49,6 +49,7 @@ operator_lib_list = [
     ":operator_agg_logical_all",
     ":operator_agg_logical_any",
     ":operator_agg_max",
+    ":operator_agg_mean",
     ":operator_agg_median",
     ":operator_agg_min",
     ":operator_agg_prod",
@@ -155,7 +156,6 @@ operator_libraries(
                 hdrs = ["group_op_accumulators.h"],
                 acc_class = "::arolla::CountPartialAccumulator",
                 child_args = [unit_type],
-                init_args = [make_optional_type("int64_t")],
                 deps = [":lib"],
             ),
         ],
@@ -208,6 +208,23 @@ operator_libraries(
                 deps = [":lib"],
             )
             for value_type in numeric_types
+        ],
+    ),
+)
+
+operator_libraries(
+    name = "operator_agg_mean",
+    operator_name = "math._mean",
+    overloads = lift_by(
+        accumulator_lifters,
+        [
+            accumulator_overload(
+                hdrs = ["group_op_accumulators.h"],
+                acc_class = "::arolla::MeanAggregator<" + value_type + ">",
+                child_args = [value_type],
+                deps = [":lib"],
+            )
+            for value_type in float_types
         ],
     ),
 )
@@ -540,8 +557,8 @@ cc_test(
         "//arolla/memory",
         "//arolla/qexpr",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",

@@ -34,6 +34,7 @@
 #include "arolla/array/qtype/types.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/serialization/encode.h"
+#include "arolla/serialization_base/base.pb.h"
 #include "arolla/serialization_codecs/array/array_codec.pb.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
@@ -41,21 +42,21 @@
 namespace arolla::serialization_codecs {
 namespace {
 
+using ::arolla::serialization::Encode;
 using ::arolla::serialization_base::ValueProto;
-using ::arolla::serialization_codecs::ArrayV1Proto;
 
 template <typename T>
 absl::StatusOr<ValueProto> GenValueProto(const T& value) {
   ASSIGN_OR_RETURN(auto container_proto,
-                   serialization::Encode({TypedValue::FromValue(value)}, {}));
-  CHECK(!container_proto.decoding_steps().empty());
-  CHECK(container_proto.decoding_steps().rbegin()->has_value());
-  return container_proto.decoding_steps().rbegin()->value();
+                   Encode({TypedValue::FromValue(value)}, {}));
+  CHECK_GT(container_proto.decoding_steps_size(), 1);
+  CHECK(container_proto.decoding_steps().rbegin()[1].has_value());
+  return container_proto.decoding_steps().rbegin()[1].value();
 }
 
 class EncodeArrayTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(EncodeArrayTest, IdsOffset) {
@@ -64,7 +65,7 @@ TEST_F(EncodeArrayTest, IdsOffset) {
                    .Slice(1, 3);
   ASSERT_EQ(array.id_filter().ids_offset(), 1);
   ASSERT_OK_AND_ASSIGN(auto value_proto, GenValueProto(array));
-  EXPECT_THAT(value_proto.input_value_indices(), testing::ElementsAre(0, 1));
+  EXPECT_THAT(value_proto.input_value_indices(), testing::ElementsAre(2, 4));
   ASSERT_TRUE(value_proto.HasExtension(ArrayV1Proto::extension));
   const auto& array_proto = value_proto.GetExtension(ArrayV1Proto::extension);
   ASSERT_EQ(array_proto.value_case(), ArrayV1Proto::kArrayFloat32Value);

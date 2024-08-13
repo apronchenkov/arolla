@@ -32,10 +32,10 @@
 #include "arolla/qtype/base_types.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/typed_value.h"
-#include "arolla/serialization/decode.h"
-#include "arolla/serialization_base/decode.h"
+#include "arolla/serialization_base/decoder.h"
 #include "arolla/serialization_codecs/dense_array/codec_name.h"
 #include "arolla/serialization_codecs/dense_array/dense_array_codec.pb.h"
+#include "arolla/serialization_codecs/registry.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/text.h"
@@ -48,11 +48,9 @@ namespace {
 namespace bm = ::arolla::bitmap;
 
 using ::arolla::expr::ExprNodePtr;
-using ::arolla::serialization::RegisterValueDecoder;
 using ::arolla::serialization_base::NoExtensionFound;
 using ::arolla::serialization_base::ValueDecoderResult;
 using ::arolla::serialization_base::ValueProto;
-using ::arolla::serialization_codecs::DenseArrayV1Proto;
 
 absl::Status CheckFieldPresence(absl::string_view field_name, bool presence) {
   if (presence) {
@@ -343,10 +341,10 @@ absl::StatusOr<ValueDecoderResult> DecodeDenseArray(
       "unexpected value=", static_cast<int>(dense_array_proto.value_case())));
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterSerializationCodecs,
-    register_serialization_codecs_dense_array_v1_decoder, []() -> absl::Status {
-      return RegisterValueDecoder(kDenseArrayV1Codec, DecodeDenseArray);
-    });
+AROLLA_INITIALIZER(
+        .reverse_deps = {arolla::initializer_dep::kS11n},
+        .init_fn = []() -> absl::Status {
+          return RegisterValueDecoder(kDenseArrayV1Codec, DecodeDenseArray);
+        })
 
 }  // namespace arolla::serialization_codecs

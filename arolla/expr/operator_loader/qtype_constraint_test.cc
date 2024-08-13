@@ -19,6 +19,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/expr/expr.h"
 #include "arolla/memory/optional_value.h"
@@ -27,23 +28,23 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/shape_qtype.h"
 #include "arolla/qtype/tuple_qtype.h"
+#include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::operator_loader {
 namespace {
 
+using ::absl_testing::IsOk;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::CallOp;
 using ::arolla::expr::Literal;
 using ::arolla::expr::Placeholder;
-using ::arolla::testing::IsOk;
-using ::arolla::testing::StatusIs;
 using ::testing::HasSubstr;
 
 class QTypeConstraintTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 
   static absl::StatusOr<QTypeConstraintFn> SampleConstraintFn() {
     ASSIGN_OR_RETURN(auto x_is_scalar_qtype_expr,
@@ -95,10 +96,10 @@ TEST_F(QTypeConstraintTest, ErrorMessage) {
                HasSubstr("expected `y` to be scalar, got SCALAR_SHAPE")));
   EXPECT_THAT(fn({
                   {"x", GetQType<int32_t>()},
-                  {"y", GetQType<float>()},
+                  {"y", GetQType<Bytes>()},
               }),
               StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("no common qtype for x:INT32 and y:FLOAT32")));
+                       HasSubstr("no common qtype for x:INT32 and y:BYTES")));
 }
 
 TEST_F(QTypeConstraintTest, NoOutputQType) {

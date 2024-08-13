@@ -19,8 +19,8 @@ import re
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy
 from arolla.abc import abc as arolla_abc
+from arolla.operators import operators_clib as _
 from arolla.types.qtype import array_qtype
 from arolla.types.qtype import casting
 from arolla.types.qtype import dense_array_qtype
@@ -28,6 +28,7 @@ from arolla.types.qtype import optional_qtype
 from arolla.types.qtype import scalar_qtype
 from arolla.types.qtype import scalar_utils
 from arolla.types.qtype import scalar_utils_test_helpers
+import numpy
 
 
 class ArrayQTypeTest(parameterized.TestCase):

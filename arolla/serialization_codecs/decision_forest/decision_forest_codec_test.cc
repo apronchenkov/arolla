@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/string_view.h"
 #include "google/protobuf/text_format.h"
 #include "arolla/decision_forest/decision_forest.h"
@@ -33,13 +34,13 @@
 #include "arolla/serialization/decode.h"
 #include "arolla/serialization/encode.h"
 #include "arolla/serialization_base/base.pb.h"
-#include "arolla/serialization_base/decode.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/testing/equals_proto.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla::testing {
 namespace {
+
+using ::absl_testing::StatusIs;
 
 constexpr float kInf = std::numeric_limits<float>::infinity();
 constexpr auto S = DecisionTreeNodeId::SplitNodeId;
@@ -61,9 +62,11 @@ DecisionForestPtr CreateForest() {
 }
 
 constexpr absl::string_view kExpectedProtoStr =
-    R"pb(version: 1
-         codecs {
-           name: "arolla.serialization_codecs.DecisionForestV1Proto.extension"
+    R"pb(version: 2
+         decoding_steps {
+           codec {
+             name: "arolla.serialization_codecs.DecisionForestV1Proto.extension"
+           }
          }
          decoding_steps {
            value {
@@ -103,13 +106,15 @@ constexpr absl::string_view kExpectedProtoStr =
              }
            }
          }
-         output_value_indices: 0
+         decoding_steps { output_value_index: 1 }
     )pb";
 
 constexpr absl::string_view kInvalidProtoStr =
-    R"pb(version: 1
-         codecs {
-           name: "arolla.serialization_codecs.DecisionForestV1Proto.extension"
+    R"pb(version: 2
+         decoding_steps {
+           codec {
+             name: "arolla.serialization_codecs.DecisionForestV1Proto.extension"
+           }
          }
          decoding_steps {
            value {
@@ -134,13 +139,15 @@ constexpr absl::string_view kInvalidProtoStr =
              }
            }
          }
-         output_value_indices: 0
+         decoding_steps { output_value_index: 1 }
     )pb";
 
 constexpr absl::string_view kQTypeProtoStr =
-    R"pb(version: 1
-         codecs {
-           name: "arolla.serialization_codecs.DecisionForestV1Proto.extension"
+    R"pb(version: 2
+         decoding_steps {
+           codec {
+             name: "arolla.serialization_codecs.DecisionForestV1Proto.extension"
+           }
          }
          decoding_steps {
            value {
@@ -150,16 +157,16 @@ constexpr absl::string_view kQTypeProtoStr =
              }
            }
          }
-         output_value_indices: 0)pb";
+         decoding_steps { output_value_index: 1 })pb";
 
 TEST(DecisionForestCodec, DecisionForestQValue) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   DecisionForestPtr forest = CreateForest();
   ASSERT_OK_AND_ASSIGN(
       arolla::serialization_base::ContainerProto proto,
       serialization::Encode({TypedValue::FromValue(forest)}, {}));
   EXPECT_TRUE(EqualsProto(proto, kExpectedProtoStr));
-  ASSERT_OK_AND_ASSIGN(serialization_base::DecodeResult res,
+  ASSERT_OK_AND_ASSIGN(serialization::DecodeResult res,
                        serialization::Decode(proto));
   EXPECT_TRUE(res.exprs.empty());
   ASSERT_EQ(res.values.size(), 1);
@@ -172,7 +179,7 @@ TEST(DecisionForestCodec, DecisionForestQValue) {
 }
 
 TEST(DecisionForestCodec, DecodeInvalidProto) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   arolla::serialization_base::ContainerProto proto;
   google::protobuf::TextFormat::ParseFromString(
       // Converted to std::string because OSS version of ParseFromString doesn't
@@ -184,13 +191,13 @@ TEST(DecisionForestCodec, DecodeInvalidProto) {
 }
 
 TEST(DecisionForestCodec, DecisionForestQType) {
-  ASSERT_OK(InitArolla());
+  InitArolla();
   ASSERT_OK_AND_ASSIGN(
       arolla::serialization_base::ContainerProto proto,
       serialization::Encode(
           {TypedValue::FromValue(GetQType<DecisionForestPtr>())}, {}));
   EXPECT_TRUE(EqualsProto(proto, kQTypeProtoStr));
-  ASSERT_OK_AND_ASSIGN(serialization_base::DecodeResult res,
+  ASSERT_OK_AND_ASSIGN(serialization::DecodeResult res,
                        serialization::Decode(proto));
   EXPECT_TRUE(res.exprs.empty());
   ASSERT_EQ(res.values.size(), 1);

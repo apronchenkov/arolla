@@ -19,13 +19,14 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/expr/expr.h"
 #include "arolla/qtype/base_types.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/shape_qtype.h"
+#include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::operator_loader {
@@ -35,13 +36,13 @@ using expr::CallOp;
 using expr::Literal;
 using expr::Placeholder;
 
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 
 class QTypeInferenceTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 
   static absl::StatusOr<QTypeInferenceFn> SampleInferenceFn() {
     ASSIGN_OR_RETURN(auto x_is_scalar_qtype_expr,
@@ -81,13 +82,12 @@ TEST_F(QTypeInferenceTest, ErrorMessage) {
   EXPECT_THAT(
       fn({
           {"x", GetQType<int32_t>()},
-          {"y", GetQType<float>()},
+          {"y", GetQType<Bytes>()},
       }),
-      StatusIs(
-          absl::StatusCode::kInvalidArgument,
-          HasSubstr(
-              "qtype inference expression produced no "
-              "qtype: M.qtype.common_qtype(P.x, P.y), x:INT32, y:FLOAT32")));
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr(
+                   "qtype inference expression produced no "
+                   "qtype: M.qtype.common_qtype(P.x, P.y), x:INT32, y:BYTES")));
 }
 
 TEST_F(QTypeInferenceTest, NoOutputQType) {

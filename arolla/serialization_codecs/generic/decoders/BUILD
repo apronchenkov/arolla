@@ -36,8 +36,8 @@ cc_library(
         "//arolla/memory",
         "//arolla/qtype",
         "//arolla/qtype/array_like",
-        "//arolla/serialization:decode",
         "//arolla/serialization_base",
+        "//arolla/serialization_codecs:registry",
         "//arolla/serialization_codecs/generic:codec_name",
         "//arolla/serialization_codecs/generic:operator_codec_cc_proto",
         "//arolla/serialization_codecs/generic:optional_codec_cc_proto",
@@ -50,6 +50,7 @@ cc_library(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
+        "@com_google_protobuf//:protobuf_lite",
     ],
     alwayslink = True,
 )

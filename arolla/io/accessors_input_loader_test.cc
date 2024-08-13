@@ -27,6 +27,7 @@
 #include "gtest/gtest.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "arolla/io/input_loader.h"
@@ -36,13 +37,12 @@
 #include "arolla/memory/raw_buffer_factory.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 namespace {
 
+using ::absl_testing::StatusIs;
 using ::arolla::testing::InputLoaderSupports;
-using ::arolla::testing::StatusIs;
 using ::testing::HasSubstr;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
@@ -378,8 +378,8 @@ template <size_t>
 using PairStringFunctionByInt = PairStringFunction;
 
 template <size_t... Is>
-absl::StatusOr<InputLoaderPtr<int>> CreateAccessorsInputLoaderManyInputs(
-    std::index_sequence<Is...>) {
+absl::StatusOr<std::unique_ptr<InputLoader<int>>>
+CreateAccessorsInputLoaderManyInputs(std::index_sequence<Is...>) {
   using T = std::tuple<PairStringFunctionByInt<Is>...>;
   return CreateAccessorsInputLoaderFromTuple<int>(
       T{PairStringFunction(absl::StrCat(Is), [](int) { return Is; })...});

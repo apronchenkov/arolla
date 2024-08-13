@@ -532,6 +532,30 @@ class ExprViewTest(absltest.TestCase):
     ):
       l_x(1, w=2)
 
+  def test_default_expr_view_iterable_sequence(self):
+    class DefaultView(abc_expr_view.ExprView):
+
+      def _arolla_sequence_getitem_(self, i):
+        return [1, 2, 3][i]
+
+    abc_expr_view.unsafe_set_default_expr_view(DefaultView)
+    x, y, z = l_x
+    self.assertEqual((x, y, z), (1, 2, 3))
+    self.assertEqual(tuple(l_x), (1, 2, 3))
+    self.assertEqual(tuple(iter(l_x)), (1, 2, 3))
+    self.assertEqual(list(l_x), [1, 2, 3])
+    self.assertEqual(list(iter(l_x)), [1, 2, 3])
+    abc_expr_view.unsafe_remove_default_expr_view_member(
+        '_arolla_sequence_getitem_')
+    with self.assertRaisesWithLiteralMatch(
+        TypeError, "'arolla.abc.Expr' object is not iterable"
+    ):
+      list(l_x)
+    with self.assertRaisesWithLiteralMatch(
+        TypeError, "'arolla.abc.Expr' object is not iterable"
+    ):
+      list(iter(l_x))
+
   def test_default_sub_view(self):
     class ExprView1(abc_expr_view.ExprView):
 
@@ -548,6 +572,35 @@ class ExprViewTest(absltest.TestCase):
 
     abc_expr_view.unsafe_set_default_expr_view(ExprView3)
     self.assertEqual(l_x.attr(), 'attr2')
+
+  def test_dir(self):
+    class DefaultView(abc_expr_view.ExprView):
+      default_attr = True
+
+    class View1(abc_expr_view.ExprView):
+      attr1 = True
+
+    class View2(abc_expr_view.ExprView):
+
+      @classmethod
+      def attr2(cls):
+        return None
+
+    abc_expr_view.unsafe_set_default_expr_view(DefaultView)
+    abc_expr_view.set_expr_view_for_qtype(
+        dummy_types.make_dummy_value().qtype, View1
+    )
+    abc_expr_view.set_expr_view_for_operator_family(
+        op_identity._specialization_key, View2
+    )
+    expr1 = abc_expr.literal(dummy_types.make_dummy_value())
+    expr2 = abc_expr.bind_op(op_identity, l_x)
+    expr3 = abc_expr.bind_op(op_identity, expr1)
+    self.assertLessEqual({'default_attr', 'attr1'}, set(dir(expr1)))
+    self.assertLessEqual({'default_attr', 'attr2'}, set(dir(expr2)))
+    self.assertLessEqual({'default_attr', 'attr1', 'attr2'}, set(dir(expr3)))
+    self.assertNotIn('view1_attr', dir(expr2))
+    self.assertNotIn('view2_attr', dir(expr1))
 
 
 if __name__ == '__main__':

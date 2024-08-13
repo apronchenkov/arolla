@@ -55,6 +55,7 @@ cc_library(
         "//arolla/qtype",
         "//arolla/qtype/array_like",
         "//arolla/qtype/standard_type_properties",
+        "//arolla/qtype/strings",
         "//arolla/sequence",
         "//arolla/util",
         "//arolla/util:status_backport",
@@ -90,7 +91,6 @@ cc_library(
     deps = [
         ":bootstrap",
         "//arolla/expr",
-        "//arolla/memory",
         "//arolla/qtype",
         "//arolla/qtype/array_like",
         "//arolla/qtype/standard_type_properties",
@@ -116,8 +116,8 @@ cc_test(
         "//arolla/memory",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -135,8 +135,8 @@ cc_test(
         "//arolla/qexpr/operators/bootstrap",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -153,7 +153,7 @@ cc_test(
         "//arolla/qexpr/operators/all",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -170,7 +170,7 @@ cc_test(
         "//arolla/memory",
         "//arolla/qexpr/operators/all",
         "//arolla/util",
-        "//arolla/util/testing",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -181,28 +181,8 @@ cc_test(
     deps = [
         ":bootstrap",
         "//arolla/expr",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "register_operators_test",
-    srcs = ["register_operators_test.cc"],
-    deps = [
-        "//arolla/dense_array/qtype",
-        "//arolla/expr",
-        "//arolla/expr/operators/all",
-        "//arolla/memory",
-        "//arolla/qexpr/operators/all",
-        "//arolla/qtype",
-        "//arolla/util",
-        "//arolla/util:status_backport",
-        "//arolla/util/testing",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/types:span",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -221,6 +201,7 @@ cc_test(
         "//arolla/qtype/testing",
         "//arolla/util",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -237,8 +218,8 @@ cc_test(
         "//arolla/qexpr/operators/all",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
@@ -273,8 +254,8 @@ cc_test(
         "//arolla/qtype",
         "//arolla/util",
         "//arolla/util:status_backport",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",

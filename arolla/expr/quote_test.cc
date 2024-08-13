@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/dense_array/dense_array.h"
 #include "arolla/expr/expr.h"
 #include "arolla/expr/expr_operator.h"
@@ -30,22 +31,21 @@
 #include "arolla/util/fingerprint.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/repr.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/text.h"
 
 namespace arolla::expr {
 namespace {
 
+using ::absl_testing::IsOk;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::testing::DummyOp;
-using ::arolla::testing::IsOk;
-using ::arolla::testing::StatusIs;
 using ::testing::Eq;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Ne;
 
 class ExprQuoteTest : public ::testing::Test {
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 
  protected:
   ExprOperatorPtr op_ = std::make_shared<DummyOp>(

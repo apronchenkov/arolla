@@ -373,7 +373,7 @@ operator_libraries(
 
 operator_libraries(
     name = "operator_ceil",
-    operator_name = "math.ceil",
+    operator_name = "math._ceil",
     overloads = with_lifted_by(
         all_lifters,
         operator_overload_list(
@@ -387,7 +387,7 @@ operator_libraries(
 
 operator_libraries(
     name = "operator_floor",
-    operator_name = "math.floor",
+    operator_name = "math._floor",
     overloads = with_lifted_by(
         all_lifters,
         operator_overload_list(
@@ -401,7 +401,7 @@ operator_libraries(
 
 operator_libraries(
     name = "operator_round",
-    operator_name = "math.round",
+    operator_name = "math._round",
     overloads = with_lifted_by(
         all_lifters,
         operator_overload_list(
@@ -693,8 +693,8 @@ cc_test(
         "//arolla/qexpr",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -716,8 +716,8 @@ cc_test(
         ":lib",
         "//arolla/dense_array",
         "//arolla/memory",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -734,7 +734,7 @@ cc_test(
         "//arolla/qexpr",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )

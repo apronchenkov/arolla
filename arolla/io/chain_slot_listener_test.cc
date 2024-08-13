@@ -23,6 +23,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/io/accessors_slot_listener.h"
 #include "arolla/io/slot_listener.h"
@@ -30,12 +31,11 @@
 #include "arolla/memory/memory_allocation.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 namespace {
 
-using ::arolla::testing::StatusIs;
+using ::absl_testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -106,7 +106,7 @@ TEST(SlotListenerTest, ChainSlotListener) {
     EXPECT_THAT(chain_listener->GetQTypeOf("a"), Eq(GetQType<int>()));
     EXPECT_THAT(chain_listener->GetQTypeOf("b"), Eq(GetQType<double>()));
     EXPECT_THAT(chain_listener->SuggestAvailableNames(),
-                ElementsAre("a", "a", "b"));
+                ElementsAre("a", "b", "a"));
 
     ASSERT_OK_AND_ASSIGN(BoundSlotListener<TestStruct> bound_chain_listener,
                          chain_listener->Bind({

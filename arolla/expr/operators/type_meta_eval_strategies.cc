@@ -44,6 +44,7 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/shape_qtype.h"
 #include "arolla/qtype/standard_type_properties/properties.h"
+#include "arolla/qtype/weak_qtype.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/text.h"
 #include "arolla/util/status_macros_backport.h"
@@ -56,19 +57,19 @@ using ::arolla::expr::ExprOperatorPtr;
 using ::arolla::expr_operators::CastingRegistry;
 
 bool IsIntegral(const QType* qtype) {
-  return IsIntegralScalarQType(GetScalarQType(qtype).value_or(nullptr));
+  return IsIntegralScalarQType(GetScalarQTypeOrNull(qtype));
 }
 
 bool IsFloatingPoint(QTypePtr qtype) {
-  return IsFloatingPointScalarQType(GetScalarQType(qtype).value_or(nullptr));
+  return IsFloatingPointScalarQType(GetScalarQTypeOrNull(qtype));
 }
 
 bool IsNumeric(const QType* qtype) {
-  return IsNumericScalarQType(GetScalarQType(qtype).value_or(nullptr));
+  return IsNumericScalarQType(GetScalarQTypeOrNull(qtype));
 }
 
 bool IsBoolean(QTypePtr qtype) {
-  return GetScalarQType(qtype).value_or(nullptr) == GetQType<bool>();
+  return GetScalarQTypeOrNull(qtype) == GetQType<bool>();
 }
 
 bool IsString(QTypePtr qtype) {
@@ -77,7 +78,7 @@ bool IsString(QTypePtr qtype) {
 }
 
 bool IsText(QTypePtr qtype) {
-  return GetScalarQType(qtype).value_or(nullptr) == GetQType<Text>();
+  return GetScalarQTypeOrNull(qtype) == GetQType<Text>();
 }
 
 namespace {
@@ -147,7 +148,6 @@ Strategy Or(absl::Span<const Strategy> strategies) {
   return [strategies_ =
               std::vector<Strategy>{strategies.begin(), strategies.end()}](
              absl::Span<const QTypePtr> types) -> absl::StatusOr<QTypes> {
-    QTypes result(types.begin(), types.end());
     std::vector<std::string> errors;
     for (const auto& s : strategies_) {
       auto result = s(types);
@@ -294,6 +294,14 @@ absl::StatusOr<QTypes> CommonType(absl::Span<const QTypePtr> types) {
   ASSIGN_OR_RETURN(auto common_type,
                    registry->CommonType(types, /*enable_broadcasting=*/true));
   return QTypes{common_type};
+}
+
+absl::StatusOr<QTypes> CommonFloatType(absl::Span<const QTypePtr> types) {
+  std::vector<QTypePtr> extended_types;
+  extended_types.reserve(types.size() + 1);
+  extended_types.assign(types.begin(), types.end());
+  extended_types.push_back(GetWeakFloatQType());
+  return CommonType(extended_types);
 }
 
 namespace {

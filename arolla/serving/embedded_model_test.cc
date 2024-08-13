@@ -26,6 +26,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "arolla/expr/eval/eval.h"
@@ -41,16 +42,15 @@
 #include "arolla/serving/expr_compiler.h"
 #include "arolla/util/indestructible.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace {
 
 // Do not use using from `::arolla` in order to test that
 // macro doesn't use not fully specified (Arolla local) names.
-using ::arolla::testing::IsOk;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::Eq;
 
 struct TestInput {
@@ -62,7 +62,8 @@ struct TestSideOutput {
   std::optional<float> subtract;
 };
 
-absl::StatusOr<::arolla::InputLoaderPtr<TestInput>> CreateInputLoader() {
+absl::StatusOr<std::unique_ptr<arolla::InputLoader<TestInput>>>
+CreateInputLoader() {
   return ::arolla::CreateAccessorsInputLoader<TestInput>(
       "x", [](const auto& x) { return x.x; },  //
       "y", [](const auto& x) { return x.y; });
@@ -114,7 +115,7 @@ AROLLA_DEFINE_EMBEDDED_MODEL_FN(
 }  // namespace test_namespace
 
 TEST(ExprCompilerTest, UseDynamicEmbeddedExpr) {
-  ASSERT_OK(::arolla::InitArolla());
+  ::arolla::InitArolla();
   auto model = ::test_namespace::MyDynamicEmbeddedModel();
   static_assert(
       std::is_same_v<std::decay_t<decltype(model)>,
@@ -144,7 +145,7 @@ AROLLA_DEFINE_EMBEDDED_MODEL_FN(
 }  // namespace test_namespace
 
 TEST(ExprCompilerTest, UseCompiledEmbeddedExprWithSideOutput) {
-  ASSERT_OK(::arolla::InitArolla());
+  ::arolla::InitArolla();
   auto model = ::test_namespace::MyCompiledEmbeddedModel();
   static_assert(
       std::is_same_v<std::decay_t<decltype(model)>,
@@ -181,7 +182,7 @@ AROLLA_DEFINE_EMBEDDED_MODEL_SET_FN(
 }  // namespace test_namespace
 
 TEST(ExprCompilerTest, UseDynamicEmbeddedExprSet) {
-  ASSERT_OK(::arolla::InitArolla());
+  ::arolla::InitArolla();
   ASSERT_OK_AND_ASSIGN(auto model,
                        test_namespace::MyDynamicEmbeddedExprSet("first_expr"));
   static_assert(
@@ -227,7 +228,7 @@ AROLLA_DEFINE_EMBEDDED_MODEL_SET_FN(
 }  // namespace test_namespace
 
 TEST(ExprCompilerTest, UseCompiledEmbeddedExprSet) {
-  ASSERT_OK(::arolla::InitArolla());
+  ::arolla::InitArolla();
   ASSERT_OK_AND_ASSIGN(auto model,
                        test_namespace::MyCompiledEmbeddedExprSet("first_expr"));
   static_assert(
@@ -247,7 +248,7 @@ TEST(ExprCompilerTest, UseCompiledEmbeddedExprSet) {
 }
 
 void BM_MyDynamicEmbeddedModel_Request(benchmark::State& state) {
-  CHECK_OK(::arolla::InitArolla());
+  ::arolla::InitArolla();
   TestInput input{.x = 28, .y = 29};
   for (auto _ : state) {
     benchmark::DoNotOptimize(input);
@@ -256,7 +257,7 @@ void BM_MyDynamicEmbeddedModel_Request(benchmark::State& state) {
 }
 
 void BM_MyDynamicEmbeddedModel_ConstructOutOfTheLoop(benchmark::State& state) {
-  CHECK_OK(::arolla::InitArolla());
+  ::arolla::InitArolla();
   TestInput input{.x = 28, .y = 29};
   auto model = test_namespace::MyDynamicEmbeddedModel();
   for (auto _ : state) {

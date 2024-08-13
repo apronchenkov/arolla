@@ -19,6 +19,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/expr/eval/invoke.h"
 #include "arolla/expr/expr.h"
 #include "arolla/expr/operators/type_meta_eval_strategies.h"
@@ -32,20 +33,20 @@
 namespace arolla::expr_operators {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::CallOp;
 using ::arolla::expr::Literal;
 using ::arolla::expr_operators::type_meta::Floating;
 using ::arolla::expr_operators::type_meta::Integral;
 using ::arolla::testing::InvokeExprOperator;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::arolla::testing::TypedValueWith;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 
 class RestrictedOperatorTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(RestrictedOperatorTest, RestrictSimpleOperator) {

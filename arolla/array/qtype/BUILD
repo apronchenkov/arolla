@@ -60,6 +60,7 @@ cc_test(
         "//arolla/util",
         "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -79,9 +80,9 @@ cc_test(
         "//arolla/qtype",
         "//arolla/qtype/array_like",
         "//arolla/util:status_backport",
-        "//arolla/util/testing",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",
     ],

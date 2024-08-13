@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-
 #include "benchmark/benchmark.h"
-#include "absl/log/check.h"
 #include "absl/strings/str_format.h"
 #include "arolla/qexpr/operators.h"
 #include "arolla/qexpr/testing/benchmarks.h"
@@ -32,7 +30,7 @@ constexpr T kInitialValue = T{57.07};
 // Microbenchmark for evaluation of a tree of "Add" operators.
 template <typename T>
 void BM_Add(benchmark::State& state) {
-  CHECK_OK(InitArolla());
+  InitArolla();
   int num_inputs = state.range(0);
   bool shuffle = state.range(1) != 0;
   auto qtype = GetQType<T>();

@@ -24,6 +24,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/dense_array/dense_array.h"
 #include "arolla/dense_array/qtype/types.h"
@@ -32,7 +33,6 @@
 #include "arolla/io/accessors_input_loader.h"
 #include "arolla/io/input_loader.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla::expr {
 namespace {
@@ -40,7 +40,7 @@ namespace {
 constexpr int kNumIterations = 100;
 constexpr int kNumThreads = 10;
 
-using ::arolla::testing::IsOkAndHolds;
+using ::absl_testing::IsOkAndHolds;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::UnorderedElementsAreArray;
@@ -49,12 +49,14 @@ struct TestInput {
   int64_t x;
 };
 
-absl::StatusOr<InputLoaderPtr<TestInput>> CreateTestInputsLoader() {
+absl::StatusOr<std::unique_ptr<InputLoader<TestInput>>>
+CreateTestInputsLoader() {
   return CreateAccessorsInputLoader<TestInput>(
       "x", [](const TestInput& in) { return in.x; });
 }
 
-absl::StatusOr<InputLoaderPtr<TestInput>> CreateDenseArrayTestInputsLoader() {
+absl::StatusOr<std::unique_ptr<InputLoader<TestInput>>>
+CreateDenseArrayTestInputsLoader() {
   return CreateAccessorsInputLoader<TestInput>("x", [](const TestInput& in) {
     return CreateDenseArray<int64_t>({in.x, in.x, in.x});
   });
@@ -106,7 +108,7 @@ std::vector<absl::StatusOr<Output>> RunMany(
 
 class ThreadSafeModelExecutorTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(ThreadSafeModelExecutorTest, Move) {
@@ -223,7 +225,7 @@ TEST_F(ThreadSafeModelExecutorTest, ExecuteManyOnDenseArraysWithArena) {
 
 class ThreadSafePoolModelExecutorTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(ThreadSafePoolModelExecutorTest, Move) {
@@ -340,7 +342,7 @@ TEST_F(ThreadSafePoolModelExecutorTest, ExecuteManyOnDenseArraysWithArena) {
 
 class CopyableThreadUnsafeModelExecutorTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(CopyableThreadUnsafeModelExecutorTest, Move) {

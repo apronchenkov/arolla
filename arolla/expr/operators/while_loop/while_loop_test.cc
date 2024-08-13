@@ -19,6 +19,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/expr/expr.h"
 #include "arolla/expr/expr_attributes.h"
 #include "arolla/expr/expr_node.h"
@@ -30,13 +31,15 @@
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/tuple_qtype.h"
+#include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/text.h"
 
 namespace arolla::expr_operators {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::CallOp;
 using ::arolla::expr::ExprNodePtr;
 using ::arolla::expr::ExprOperatorSignature;
@@ -46,8 +49,6 @@ using ::arolla::expr::Literal;
 using ::arolla::expr::Placeholder;
 using ::arolla::testing::EqualsAttr;
 using ::arolla::testing::EqualsExpr;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -56,7 +57,7 @@ using Attr = ::arolla::expr::ExprAttributes;
 
 class WhileLoopTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(WhileLoopTest, WhileLoopOperatorMake) {
@@ -205,7 +206,7 @@ TEST_F(WhileLoopTest, MakeWhileLoop) {
   ASSERT_OK_AND_ASSIGN(
       QTypePtr wrong_state_type,
       MakeNamedTupleQType({"x", "y"}, MakeTupleQType({GetQType<int64_t>(),
-                                                      GetQType<float>()})));
+                                                      GetQType<Bytes>()})));
   EXPECT_THAT(while_loop_op->InferAttributes({Attr(wrong_state_type)}),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("in condition of `anonymous.while_loop` "

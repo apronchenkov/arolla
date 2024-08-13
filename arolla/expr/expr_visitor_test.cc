@@ -26,6 +26,7 @@
 #include "gtest/gtest.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "arolla/expr/expr.h"
@@ -37,15 +38,14 @@
 #include "arolla/expr/testing/testing.h"
 #include "arolla/util/fingerprint.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla::expr {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::testing::DummyOp;
 using ::arolla::testing::EqualsExpr;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -78,7 +78,7 @@ class ExprVisitorTest : public ::testing::Test {
   }
 
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 
   ExprOperatorPtr bar_ = std::make_shared<DummyOp>(
       "bar", ExprOperatorSignature::MakeVariadicArgs());
@@ -274,7 +274,7 @@ class DeepTransformTest : public ::testing::Test {
   }
 
  private:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 
   ExprOperatorPtr a_ =
       std::make_shared<DummyOp>("a", ExprOperatorSignature::MakeVariadicArgs());

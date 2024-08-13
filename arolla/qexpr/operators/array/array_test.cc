@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/array/edge.h"
 #include "arolla/memory/frame.h"
 #include "arolla/memory/optional_value.h"
@@ -34,17 +35,18 @@
 #include "arolla/qexpr/operators/testing/accumulators.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/meta.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/text.h"
 #include "arolla/util/unit.h"
 
 namespace arolla::testing {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::HasSubstr;
 
 class LifterTest : public ::testing::Test {
-  void SetUp() final { ASSERT_OK(InitArolla()); }
+  void SetUp() final { InitArolla(); }
 };
 
 struct TemplatedAddFn {

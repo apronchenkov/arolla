@@ -54,8 +54,8 @@ cc_test(
         "//arolla/memory",
         "//arolla/qtype",
         "//arolla/util",
-        "//arolla/util/testing",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -70,5 +70,20 @@ cc_test(
         "//arolla/qtype",
         "//arolla/util",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "properties_benchmark",
+    testonly = 1,
+    srcs = ["properties_benchmark.cc"],
+    deps = [
+        ":standard_type_properties",
+        "//arolla/array/qtype",
+        "//arolla/dense_array/qtype",
+        "//arolla/qtype",
+        "//arolla/util",
+        "@com_google_benchmark//:benchmark_main",
+        "@com_google_googletest//:gtest",
     ],
 )

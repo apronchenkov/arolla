@@ -32,7 +32,6 @@
 #include "arolla/expr/registered_expr_operator.h"
 #include "arolla/qtype/base_types.h"
 #include "arolla/qtype/qtype_traits.h"
-#include "arolla/qtype/typed_value.h"
 #include "arolla/qtype/unspecified_qtype.h"
 #include "arolla/util/fingerprint.h"
 #include "arolla/util/indestructible.h"
@@ -319,7 +318,7 @@ std::optional<ReprToken> FormatOperatorNodePretty(
           node->op()->py_qvalue_specialization_key());
       op_repr_fn != nullptr) {
     if (auto res = op_repr_fn(node, node_tokens)) {
-      return std::move(*res);
+      return *std::move(res);
     }
   }
   return std::nullopt;

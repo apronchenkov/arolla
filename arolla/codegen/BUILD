@@ -74,6 +74,7 @@ py_test(
     deps = [
         ":utils",
         "@com_google_absl_py//absl/testing:absltest",
+        "@com_google_absl_py//absl/testing:parameterized",
     ],
 )
 
@@ -172,4 +173,28 @@ diff_test(
     name = "data_file_1_echo_golden_test",
     file1 = ":data_file_1.bin",
     file2 = ":data_file_1_echo",
+)
+
+cc_library(
+    name = "qtype_utils",
+    srcs = ["qtype_utils.cc"],
+    hdrs = ["qtype_utils.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
+    deps = [
+        "//arolla/qtype",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "qtype_utils_test",
+    srcs = ["qtype_utils_test.cc"],
+    deps = [
+        ":qtype_utils",
+        "//arolla/memory",
+        "//arolla/qtype",
+        "@com_google_googletest//:gtest_main",
+    ],
 )

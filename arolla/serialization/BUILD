@@ -12,53 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Serialization facilities for arolla expressions and values.
+#
+# You need to depend on codecs to use it, for example:
+#
+#   //arolla/serialization_codecs:all_decoders
+#
+# or
+#
+#   //arolla/serialization_codecs:all.
+#
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
-# Public deserialization API.
-#
-# You need to depend on decoder codecs to use it, e.g.
-# //arolla/serialization_codecs:all_decoders.
-#
 cc_library(
-    name = "decode",
+    name = "serialization",
     srcs = [
         "decode.cc",
+        "encode.cc",
+        "utils.cc",
     ],
     hdrs = [
         "decode.h",
-    ],
-    local_defines = ["AROLLA_IMPLEMENTATION"],
-    deps = [
-        "//arolla/expr",
-        "//arolla/qtype",
-        "//arolla/serialization_base",
-        "//arolla/serialization_base:base_cc_proto",
-        "//arolla/util",
-        "//arolla/util:status_backport",
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/strings:string_view",
-        "@com_google_absl//absl/synchronization",
-    ],
-)
-
-# Public serialization API.
-#
-# You need to depend on encoder codecs to use it, e.g.
-# //arolla/serialization_codecs:all.
-#
-cc_library(
-    name = "encode",
-    srcs = [
-        "encode.cc",
-    ],
-    hdrs = [
         "encode.h",
+        "utils.h",
     ],
     local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
@@ -66,17 +45,15 @@ cc_library(
         "//arolla/qtype",
         "//arolla/serialization_base",
         "//arolla/serialization_base:base_cc_proto",
+        "//arolla/serialization_codecs:registry",
         "//arolla/util",
         "//arolla/util:status_backport",
-        "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/strings:string_view",
-        "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -85,8 +62,7 @@ cc_test(
     name = "serialization_test",
     srcs = ["serialization_test.cc"],
     deps = [
-        ":decode",
-        ":encode",
+        ":serialization",
         "//arolla/array",
         "//arolla/array/qtype",
         "//arolla/dense_array",
@@ -100,9 +76,34 @@ cc_test(
         "//arolla/serialization_codecs:all",
         "//arolla/util",
         "//arolla/util:status_backport",
-        "//arolla/util/testing",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:string_view",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "riegeli",
+    srcs = ["riegeli.cc"],
+    hdrs = ["riegeli.h"],
+    local_defines = ["AROLLA_IMPLEMENTATION"],
+    deps = [
+        ":serialization",
+        "//arolla/expr",
+        "//arolla/qtype",
+        "//arolla/serialization_base",
+        "//arolla/serialization_base:base_cc_proto",
+        "//arolla/serialization_codecs:registry",
+        "//arolla/util:status_backport",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/strings:string_view",
+        "@com_google_absl//absl/types:span",
+        "@com_google_riegeli//riegeli/bytes:string_reader",
+        "@com_google_riegeli//riegeli/bytes:string_writer",
+        "@com_google_riegeli//riegeli/records:record_reader",
+        "@com_google_riegeli//riegeli/records:record_writer",
     ],
 )

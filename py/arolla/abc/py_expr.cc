@@ -277,6 +277,29 @@ PyMappingMethods kPyExpr_as_mapping = {
     .mp_subscript = PyExpr_as_mapping_subscript,
 };
 
+PyObject* PyExpr_as_sequence_item(PyObject* self, Py_ssize_t index) {
+  auto key = PyObjectPtr::Own(PyLong_FromSsize_t(index));
+  if (key == nullptr) {
+    return nullptr;
+  }
+
+  auto& self_fields = PyExpr_fields(self);
+  self_fields.expr_views.Actualize(self_fields.expr);
+  if (auto py_member = self_fields.expr_views.LookupMemberOrNull(
+          "_arolla_sequence_getitem_");
+      py_member != nullptr) {
+    PyObject* args[2] = {self, key.get()};
+    return PyObject_VectorcallMember(std::move(py_member), args, 2, nullptr)
+        .release();
+  }
+  return PyErr_Format(PyExc_TypeError, "'%s' object is not iterable",
+                      PyExpr_Type.tp_name);
+}
+
+PySequenceMethods kPyExpr_as_sequence = {
+  .sq_item = PyExpr_as_sequence_item,
+};
+
 PyObject* PyExpr_methods_format(PyObject* self, PyObject* py_str_format) {
   const auto& self_fields = PyExpr_fields(self);
   Py_ssize_t format_size;
@@ -310,6 +333,30 @@ PyObject* PyExpr_methods_equals(PyObject* self, PyObject* py_expr_other) {
   const auto& other_fields = PyExpr_fields(py_expr_other);
   return PyBool_FromLong(self_fields.expr->fingerprint() ==
                          other_fields.expr->fingerprint());
+}
+
+PyObject* PyExpr_methods_dir(PyObject* self, PyObject*) {
+  auto& self_fields = PyExpr_fields(self);
+  // Collect attributes from the `arolla.abc.Expr` type object.
+  auto result =
+      PyObjectPtr::Own(PyObject_Dir(reinterpret_cast<PyObject*>(&PyExpr_Type)));
+  if (result == nullptr) {
+    return nullptr;
+  }
+  result = PyObjectPtr::Own(PySet_New(result.get()));
+  // Include expr-view member names.
+  self_fields.expr_views.Actualize(self_fields.expr);
+  for (const auto& member_name : self_fields.expr_views.GetMemberNames()) {
+    auto py_str = PyObjectPtr::Own(
+        PyUnicode_FromStringAndSize(member_name.data(), member_name.size()));
+    if (py_str == nullptr) {
+      return nullptr;
+    }
+    if (PySet_Add(result.get(), py_str.get()) < 0) {
+      return nullptr;
+    }
+  }
+  return result.release();
 }
 
 PyObject* PyExpr_get_fingerprint(PyObject* self, void* /*closure*/) {
@@ -383,6 +430,12 @@ PyMethodDef kPyExpr_methods[] = {
         &PyExpr_methods_format,
         METH_O,
         "",
+    },
+    {
+        "__dir__",
+        &PyExpr_methods_dir,
+        METH_NOARGS,
+        "Returns a set of attribute names, including the expr-view members.",
     },
     {
         "equals",
@@ -473,6 +526,7 @@ PyTypeObject PyExpr_Type = {
     .tp_dealloc = PyExpr_dealloc,
     .tp_repr = PyExpr_repr,
     .tp_as_number = &kPyExpr_as_number,
+    .tp_as_sequence = &kPyExpr_as_sequence,
     .tp_as_mapping = &kPyExpr_as_mapping,
     .tp_hash = PyExpr_hash,
     .tp_call = PyExpr_call,

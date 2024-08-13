@@ -20,6 +20,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "arolla/qexpr/eval_context.h"
 #include "arolla/qexpr/qexpr_operator_signature.h"
@@ -28,13 +29,12 @@
 #include "arolla/qtype/simple_qtype.h"
 #include "arolla/qtype/tuple_qtype.h"
 #include "arolla/util/fingerprint.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 
-using ::arolla::testing::IsOk;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::MatchesRegex;
@@ -71,9 +71,9 @@ TEST(OperatorFactory, SimpleOperator) {
       OperatorFactory()
           .WithName("test.mul")
           .BuildFromFunction([](int64_t a, int64_t b) { return a * b; }));
-  ASSERT_THAT(op->GetQType(), Eq(QExprOperatorSignature::Get(
-                                  {GetQType<int64_t>(), GetQType<int64_t>()},
-                                  GetQType<int64_t>())));
+  ASSERT_THAT(op->signature(), Eq(QExprOperatorSignature::Get(
+                                   {GetQType<int64_t>(), GetQType<int64_t>()},
+                                   GetQType<int64_t>())));
   ASSERT_OK_AND_ASSIGN(
       auto fixture,
       (OperatorFixture<std::tuple<int64_t, int64_t>, int64_t>::Create(*op)));
@@ -86,9 +86,9 @@ TEST(OperatorFactory, NotAFunctor) {
   ASSERT_OK_AND_ASSIGN(
       auto op,
       OperatorFactory().WithName("test.mul").BuildFromFunction(Multiply));
-  ASSERT_THAT(op->GetQType(), Eq(QExprOperatorSignature::Get(
-                                  {GetQType<int64_t>(), GetQType<int64_t>()},
-                                  GetQType<int64_t>())));
+  ASSERT_THAT(op->signature(), Eq(QExprOperatorSignature::Get(
+                                   {GetQType<int64_t>(), GetQType<int64_t>()},
+                                   GetQType<int64_t>())));
   ASSERT_OK_AND_ASSIGN(
       auto fixture,
       (OperatorFixture<std::tuple<int64_t, int64_t>, int64_t>::Create(*op)));
@@ -103,7 +103,7 @@ TEST(OperatorFactory, MultiOutputOperator) {
                            .BuildFromFunction([](int64_t a, int64_t b) {
                              return std::make_tuple(b, a % b);
                            }));
-  ASSERT_THAT(op->GetQType(),
+  ASSERT_THAT(op->signature(),
               Eq(QExprOperatorSignature::Get(
                   {GetQType<int64_t>(), GetQType<int64_t>()},
                   MakeTupleQType({GetQType<int64_t>(), GetQType<int64_t>()}))));
@@ -120,7 +120,7 @@ TEST(OperatorFactory, ReturnsStatusOr) {
                      return absl::Status(absl::StatusCode::kFailedPrecondition,
                                          "failed");
                    }));
-  ASSERT_THAT(op->GetQType(),
+  ASSERT_THAT(op->signature(),
               Eq(QExprOperatorSignature::Get({}, GetQType<int64_t>())));
   ASSERT_OK_AND_ASSIGN(auto fixture,
                        (OperatorFixture<std::tuple<>, int64_t>::Create(*op)));
@@ -139,7 +139,7 @@ TEST(OperatorFactory, ReturnsStatusOrMultipleOutputs) {
             }
             return std::make_tuple(b, a % b);
           }));
-  EXPECT_THAT(op->GetQType(),
+  EXPECT_THAT(op->signature(),
               Eq(QExprOperatorSignature::Get(
                   {GetQType<int64_t>(), GetQType<int64_t>()},
                   MakeTupleQType({GetQType<int64_t>(), GetQType<int64_t>()}))));
@@ -167,7 +167,7 @@ TEST(OperatorFactory, ReturnsStatusOrTuple) {
                          return std::make_tuple(b, a % b);
                        },
                        qtype));
-  EXPECT_THAT(op->GetQType(),
+  EXPECT_THAT(op->signature(),
               Eq(QExprOperatorSignature::Get(
                   {GetQType<int64_t>(), GetQType<int64_t>()},
                   MakeTupleQType({GetQType<int64_t>(), GetQType<int64_t>()}))));

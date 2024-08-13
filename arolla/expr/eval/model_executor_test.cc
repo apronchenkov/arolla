@@ -29,6 +29,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -58,15 +59,14 @@
 #include "arolla/qtype/unspecified_qtype.h"
 #include "arolla/util/bytes.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::expr {
 namespace {
 
-using ::arolla::testing::IsOk;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::testing::TypedValueWith;
 using ::arolla::testing::WithExportAnnotation;
 using ::testing::_;
@@ -85,13 +85,15 @@ struct TestInputs {
   std::optional<int64_t> optional_z;
 };
 
-absl::StatusOr<InputLoaderPtr<TestInputs>> CreateTestInputLoader() {
+absl::StatusOr<std::unique_ptr<InputLoader<TestInputs>>>
+CreateTestInputLoader() {
   return CreateAccessorsInputLoader<TestInputs>(
       "x", [](const TestInputs& in) { return in.x; },  //
       "y", [](const TestInputs& in) { return in.y; });
 }
 
-absl::StatusOr<InputLoaderPtr<TestInputs>> CreateTestInt32InputLoader() {
+absl::StatusOr<std::unique_ptr<InputLoader<TestInputs>>>
+CreateTestInt32InputLoader() {
   return CreateAccessorsInputLoader<TestInputs>(
       "x", [](const TestInputs& in) -> int32_t { return in.x; },  //
       "y", [](const TestInputs& in) -> int32_t { return in.y; });
@@ -99,7 +101,7 @@ absl::StatusOr<InputLoaderPtr<TestInputs>> CreateTestInt32InputLoader() {
 
 class ModelExecutorTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_OK(InitArolla()); }
+  void SetUp() override { InitArolla(); }
 };
 
 TEST_F(ModelExecutorTest, Move) {
@@ -887,7 +889,7 @@ struct FactorySideEffectOp {
 static RawBufferFactory* kLastLoaderUsedFactory = nullptr;
 static void* kLastLoaderAllocatedBuffer = nullptr;
 
-absl::StatusOr<InputLoaderPtr<TestInputs>>
+absl::StatusOr<std::unique_ptr<InputLoader<TestInputs>>>
 CreateArenaSideEffectTestInputLoader() {
   return CreateAccessorsInputLoader<TestInputs>(
       "x", [](const TestInputs& in, RawBufferFactory* factory) {

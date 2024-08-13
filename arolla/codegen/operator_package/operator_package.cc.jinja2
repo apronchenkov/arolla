@@ -5,7 +5,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "google/protobuf/arena.h"
-#include "arolla/codegen/operator_package/load_operator_package.h"
+#include "arolla/codegen/operator_package/operator_package.h"
 #include "arolla/codegen/operator_package/operator_package.pb.h"
 #include "arolla/util/init_arolla.h"
 
@@ -24,14 +24,28 @@ absl::Status run() {
       !status.ok()) {
     return status;
   }
-  return ::arolla::operator_package::LoadOperatorPackage(
+  return ::arolla::operator_package::LoadOperatorPackageProto(
       *operator_package_proto);
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    {{ initializer_priority }},
-    {{ build_target | as_c_identifier }},
-    run);
+AROLLA_INITIALIZER(
+    {%- if 'name' in arolla_initializer %}
+    .name = "{{ arolla_initializer['name'] }}",
+    {%- endif %}
+    .deps = {
+        arolla::initializer_dep::kQExprOperators,
+        arolla::initializer_dep::kS11n,
+    {%- for dep in arolla_initializer.get('deps', []) %}
+        "{{ dep }}",
+    {%- endfor %}
+    },
+    .reverse_deps = {
+        arolla::initializer_dep::kOperators,
+    {%- for reverse_dep in arolla_initializer.get('reverse_deps', []) %}
+        "{{ reverse_dep }}",
+    {%- endfor %}
+    },
+    .init_fn = &run)
 
 } // namespace
 

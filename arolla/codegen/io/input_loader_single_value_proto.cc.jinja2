@@ -1,4 +1,5 @@
 {%- from 'input_loader_utils.jinja2' import exit_if_proto_value_missed, define_output_provider -%}
+{%- from 'io_utils.jinja2' import type_in_order_vector -%}
 
 {%- macro single_value_loader(protopath_tree, multi_protopath) -%}
 
@@ -6,7 +7,6 @@
 {%- set node_numeration = multi_protopath.create_node_numeration(protopath_tree) %}
 {%- set protopath_leaves = protopath_tree.leaves() %}
 using ::arolla::codegen::io::kSkippedOffset;
-using ::arolla::codegen::io::NamedTypesBuilder;
 
 // In this namespace protopath inputs with `OptionalValue` and `DenseArrayShape`
 // are being loaded.
@@ -210,18 +210,20 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
  public:
   Loader()
     : ::arolla::StaticInputLoader<Input>(
-        // use special builder to reduce binary size and stack pressure
-        []() {
-          NamedTypesBuilder builder;
-{%- for leaf in protopath_leaves %}
-          builder.Add(
-              R"RL_CODEGEN_DELIM({{ leaf.leaf_accessor_name }})RL_CODEGEN_DELIM",
-              ::arolla::GetQType<ResultType_{{ node_numeration.leaf2id[leaf] }}>());
-{%- endfor %}{# leaf #}
-          return std::move(builder).Build();
-        }()) {}
+{%- filter indent(width=8) %}
+{{ type_in_order_vector(
+  protopath_leaves|map(attribute='leaf_accessor_name')|list,
+  'ResultType_{}')
+}}
+{%- endfilter %}) {}
 
  private:
+  auto CreateProtopathTree() const {
+{%-   filter indent(width=4) %}
+return {{ multi_protopath.define_protopath_tree(protopath_tree, node_numeration) }};
+{%-   endfilter %}{#- indent #}
+  }
+
   StatusOr<BoundInputLoader<Input>> BindImpl(
       const absl::flat_hash_map<std::string, TypedSlot>& output_slots)
       const final {
@@ -230,17 +232,15 @@ class Loader final : public ::arolla::StaticInputLoader<Input> {
                          types_in_order(), output_slots));
     // Allocate on heap to reduce stack pressure.
     auto inputs = std::make_unique<HierarchicalSingleValueRequestedInputs>();
-{%-   filter indent(width=4) %}
-auto tree = {{ multi_protopath.define_protopath_tree(protopath_tree, node_numeration) }};
-{%-   endfilter %}{#- indent #}
+    auto tree = CreateProtopathTree();
     CreateHierarchicalSingleValueRequestedInputs(
       optional_slots,
       /*size_leaves=*/{ {{ multi_protopath.size_leaf_ids(protopath_tree, node_numeration) | join(', ') }} },
       tree,
       inputs.get());
-    return BoundInputLoader<Input>([inputs=std::move(*inputs)](
+    return BoundInputLoader<Input>([inputs=std::move(inputs)](
         const Input& input, FramePtr frame, RawBufferFactory*) {
-      OutputProvider output_getter{&inputs, frame};
+      OutputProvider output_getter{inputs.get(), frame};
       SlotSetter slot_setter;
       slot_setter.CollectResults(input, output_getter);
       return OkStatus();

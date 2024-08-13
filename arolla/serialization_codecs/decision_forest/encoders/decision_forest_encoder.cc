@@ -27,10 +27,10 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/typed_ref.h"
 #include "arolla/qtype/typed_value.h"
-#include "arolla/serialization/encode.h"
-#include "arolla/serialization_base/encode.h"
+#include "arolla/serialization_base/encoder.h"
 #include "arolla/serialization_codecs/decision_forest/codec_name.h"
 #include "arolla/serialization_codecs/decision_forest/decision_forest_codec.pb.h"
+#include "arolla/serialization_codecs/registry.h"
 #include "arolla/util/fast_dynamic_downcast_final.h"
 #include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
@@ -39,11 +39,8 @@ namespace arolla::serialization_codecs {
 namespace {
 
 using ::arolla::expr::ExprOperatorPtr;
-using ::arolla::serialization::RegisterValueEncoderByQType;
-using ::arolla::serialization::RegisterValueEncoderByQValueSpecialisationKey;
 using ::arolla::serialization_base::Encoder;
 using ::arolla::serialization_base::ValueProto;
-using ::arolla::serialization_codecs::DecisionForestV1Proto;
 
 void NodeIdToProto(const DecisionTreeNodeId node_id,
                    DecisionForestV1Proto::NodeId& proto) {
@@ -98,6 +95,14 @@ absl::Status DecisionForestToProto(
   return absl::OkStatus();
 }
 
+absl::StatusOr<ValueProto> GenValueProto(Encoder& encoder) {
+  ASSIGN_OR_RETURN(auto codec_index,
+                   encoder.EncodeCodec(kDecisionForestV1Codec));
+  ValueProto value_proto;
+  value_proto.set_codec_index(codec_index);
+  return value_proto;
+}
+
 absl::StatusOr<ValueProto> EncodeForestModel(const ForestModel& op,
                                              Encoder& encoder) {
   if (op.oob_filters().has_value()) {
@@ -108,8 +113,7 @@ absl::StatusOr<ValueProto> EncodeForestModel(const ForestModel& op,
     return absl::UnimplementedError(
         "serialization of truncated ForestModel is not supported yet");
   }
-  ValueProto value_proto;
-  value_proto.set_codec_index(encoder.EncodeCodec(kDecisionForestV1Codec));
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   auto* forest_model_proto =
       value_proto.MutableExtension(DecisionForestV1Proto::extension)
           ->mutable_forest_model();
@@ -151,8 +155,7 @@ absl::StatusOr<ValueProto> EncodeDecisionForest(TypedRef value,
     }
     return EncodeForestModel(*forest_model, encoder);
   }
-  ValueProto value_proto;
-  value_proto.set_codec_index(encoder.EncodeCodec(kDecisionForestV1Codec));
+  ASSIGN_OR_RETURN(auto value_proto, GenValueProto(encoder));
   if (value.GetType() == GetQType<QTypePtr>() &&
       value.UnsafeAs<QTypePtr>() == GetQType<DecisionForestPtr>()) {
     value_proto.MutableExtension(DecisionForestV1Proto::extension)
@@ -168,15 +171,14 @@ absl::StatusOr<ValueProto> EncodeDecisionForest(TypedRef value,
   return value_proto;
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterSerializationCodecs,
-    register_serialization_codecs_decision_forest_v1_encoder,
-    []() -> absl::Status {
-      RETURN_IF_ERROR(RegisterValueEncoderByQValueSpecialisationKey(
-          kForestModelQValueSpecializationKey, &EncodeDecisionForest));
-      RETURN_IF_ERROR(RegisterValueEncoderByQType(GetQType<DecisionForestPtr>(),
-                                                  &EncodeDecisionForest));
-      return absl::OkStatus();
-    });
+AROLLA_INITIALIZER(
+        .reverse_deps = {arolla::initializer_dep::kS11n},
+        .init_fn = []() -> absl::Status {
+          RETURN_IF_ERROR(RegisterValueEncoderByQValueSpecialisationKey(
+              kForestModelQValueSpecializationKey, &EncodeDecisionForest));
+          RETURN_IF_ERROR(RegisterValueEncoderByQType(
+              GetQType<DecisionForestPtr>(), &EncodeDecisionForest));
+          return absl::OkStatus();
+        })
 
 }  // namespace arolla::serialization_codecs

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-#ifndef PY_AROLLA_PY_UTILS_PY_UTILS_H_
-#define PY_AROLLA_PY_UTILS_PY_UTILS_H_
+#ifndef THIRD_PARTY_PY_AROLLA_PY_UTILS_PY_UTILS_H_
+#define THIRD_PARTY_PY_AROLLA_PY_UTILS_PY_UTILS_H_
 
 #include <Python.h>
 
@@ -289,6 +289,11 @@ PyObjectPtr PyObject_VectorcallMember(PyObjectPtr&& py_member, PyObject** args,
 // exception, i.e. PyErr_Occurred() != nullptr.
 PyObject* PyErr_FormatFromCause(PyObject* py_exc, const char* format, ...);
 
+// Returns true if PyErr_CheckSignal() can be called from this context.
+//
+// Note: This method never raises any Python exceptions.
+bool PyErr_CanCallCheckSignal();
+
 }  // namespace arolla::python
 
-#endif  // PY_AROLLA_PY_UTILS_PY_UTILS_H_
+#endif  // THIRD_PARTY_PY_AROLLA_PY_UTILS_PY_UTILS_H_

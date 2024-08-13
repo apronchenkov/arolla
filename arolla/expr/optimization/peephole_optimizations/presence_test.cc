@@ -46,7 +46,7 @@ using ::arolla::testing::WithQTypeAnnotation;
 class PresenceOptimizationsTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    ASSERT_OK(InitArolla());
+    InitArolla();
     ASSERT_OK_AND_ASSIGN(optimizer_,
                          CreatePeepholeOptimizer({PresenceOptimizations}));
     ASSERT_OK_AND_ASSIGN(
@@ -524,6 +524,23 @@ TEST_F(PresenceOptimizationsTest, WhereOptimization) {
                            {y, CallOp("core.presence_not", {cond})})})));
     ASSERT_OK_AND_ASSIGN(auto expected_expr,
                          ToLowest(CallOp("core.where", {cond, x, y})));
+    EXPECT_THAT(actual_expr, EqualsExpr(expected_expr));
+  }
+  {  // `core.where` is introduced with non-optional branches.
+    ASSERT_OK_AND_ASSIGN(
+        auto scalar_x, WithQTypeAnnotation(Leaf("x"), GetQType<float>()));
+    ASSERT_OK_AND_ASSIGN(
+        auto scalar_y, WithQTypeAnnotation(Leaf("y"), GetQType<float>()));
+    ASSERT_OK_AND_ASSIGN(
+        auto actual_expr,
+        ApplyOptimizer(
+            CallOp("core.presence_or",
+                   {CallOp("core.presence_and", {scalar_x, cond}),
+                    CallOp("core.presence_and",
+                           {scalar_y, CallOp("core.presence_not", {cond})})})));
+    ASSERT_OK_AND_ASSIGN(auto expected_expr,
+                         ToLowest(CallOp("core.to_optional", {CallOp(
+                             "core.where", {cond, scalar_x, scalar_y})})));
     EXPECT_THAT(actual_expr, EqualsExpr(expected_expr));
   }
   {

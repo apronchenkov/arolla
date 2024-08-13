@@ -27,6 +27,7 @@
 #include "gtest/gtest.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "arolla/expr/eval/eval.h"
@@ -51,11 +52,12 @@
 #include "arolla/qtype/typed_slot.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/util/init_arolla.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::CompiledExpr;
 using ::arolla::GetQType;
 using ::arolla::InputLoaderPtr;
@@ -63,8 +65,6 @@ using ::arolla::SlotListener;
 using ::arolla::expr::CallOp;
 using ::arolla::expr::ExprNodePtr;
 using ::arolla::expr::Leaf;
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
 using ::arolla::testing::WithExportValueAnnotation;
 using ::testing::_;
 using ::testing::Eq;
@@ -83,7 +83,8 @@ struct TestSideOutput {
   std::optional<float> subtract;
 };
 
-absl::StatusOr<InputLoaderPtr<TestInput>> CreateInputLoader() {
+absl::StatusOr<std::unique_ptr<arolla::InputLoader<TestInput>>>
+CreateInputLoader() {
   return ::arolla::CreateAccessorsInputLoader<TestInput>(
       "x", [](const auto& x) { return x.x; },  //
       "y", [](const auto& x) { return x.y; });
@@ -140,7 +141,7 @@ class TestInplaceCompiledExpr : public InplaceCompiledExpr {
 class ExprCompilerTest : public ::testing::Test {
  public:
   void SetUp() override {
-    ASSERT_OK(InitArolla());
+    InitArolla();
     ASSERT_OK_AND_ASSIGN(auto add_expr,
                          expr::CallOp("math.add", {Leaf("x"), Leaf("y")}));
     ASSERT_OK_AND_ASSIGN(auto subtract_expr,
@@ -328,7 +329,6 @@ TEST_F(ExprCompilerTest, Optimizer) {
   EXPECT_THAT(model(input), IsOkAndHolds(-1));
 }
 
-// TODO: Should we have more intrusive tests?
 TEST_F(ExprCompilerTest, OtherOptionsSmokeTest) {
   ASSERT_OK_AND_ASSIGN(
       auto model,
@@ -474,9 +474,8 @@ TEST_F(ExprCompilerTest, ForceNonOptionalOutput) {
 // Dummy SlotListener<void> subclass, just to test that it is prohibited.
 class VoidSlotListener : public StaticSlotListener<void> {
  public:
-  const absl::flat_hash_map<std::string, QTypePtr>& GetTypes() const final {
-    return types_;
-  }
+  VoidSlotListener(): StaticSlotListener<void>({}) {}
+
   absl::StatusOr<BoundSlotListener<Output>> BindImpl(
       // The slots corresponding to this SlotListener's inputs.
       const absl::flat_hash_map<std::string, TypedSlot>& input_slots)
@@ -485,7 +484,6 @@ class VoidSlotListener : public StaticSlotListener<void> {
   }
 
  private:
-  absl::flat_hash_map<std::string, QTypePtr> types_;
 };
 
 TEST_F(ExprCompilerTest, Errors) {

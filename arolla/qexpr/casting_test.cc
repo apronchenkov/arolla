@@ -19,18 +19,18 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/qexpr/qexpr_operator_signature.h"
 #include "arolla/qtype/base_types.h"
 #include "arolla/qtype/optional_qtype.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
-#include "arolla/util/testing/status_matchers_backport.h"
 
 namespace arolla {
 namespace {
 
-using ::arolla::testing::IsOkAndHolds;
-using ::arolla::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 
 TEST(CastingTest, FindMatchingSignature) {
@@ -44,7 +44,7 @@ TEST(CastingTest, FindMatchingSignature) {
 
   // No match.
   EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({i64, i32}, i32),
+      FindMatchingSignature({i64, i32}, i32,
                             {QExprOperatorSignature::Get({i32, i32}, i64)},
                             "foo")
           .status(),
@@ -53,7 +53,7 @@ TEST(CastingTest, FindMatchingSignature) {
 
   // No match because output types don't match.
   EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({i64, i32}, i64),
+      FindMatchingSignature({i64, i32}, i64,
                             {QExprOperatorSignature::Get({i32, i32}, i32)},
                             "foo")
           .status(),
@@ -62,13 +62,13 @@ TEST(CastingTest, FindMatchingSignature) {
 
   // Single match.
   EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({i64, i32}, i64),
+      FindMatchingSignature({i64, i32}, i64,
                             {QExprOperatorSignature::Get({i64, i64}, i64)}, ""),
       IsOkAndHolds(QExprOperatorSignature::Get({i64, i64}, i64)));
 
   // Multiple matches — we choose the operator with fewer castings needed.
   EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({i32, i32}, oi32),
+      FindMatchingSignature({i32, i32}, oi32,
                             {// Matches, but the first argument is less
                              // specific than in the next one.
                              QExprOperatorSignature::Get({oi64, i32}, oi32),
@@ -83,25 +83,20 @@ TEST(CastingTest, FindMatchingSignature) {
       IsOkAndHolds(QExprOperatorSignature::Get({i64, i32}, oi32)));
 
   // Exact match, except for derived QTypes.
-  EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({GetWeakFloatQType()},
-                                                        GetWeakFloatQType()),
-                            {QExprOperatorSignature::Get({f32}, f64),
-                             QExprOperatorSignature::Get({f64}, f64)},
-                            ""),
-      IsOkAndHolds(QExprOperatorSignature::Get({f64}, f64)));
+  EXPECT_THAT(FindMatchingSignature({GetWeakFloatQType()}, GetWeakFloatQType(),
+                                    {QExprOperatorSignature::Get({f32}, f64),
+                                     QExprOperatorSignature::Get({f64}, f64)},
+                                    ""),
+              IsOkAndHolds(QExprOperatorSignature::Get({f64}, f64)));
   // No exact match for derived QTypes — returning the most specific one.
-  EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({GetWeakFloatQType()},
-                                                        GetWeakFloatQType()),
-                            {QExprOperatorSignature::Get({f32}, f64),
-                             QExprOperatorSignature::Get({of64}, f64)},
-                            ""),
-      IsOkAndHolds(QExprOperatorSignature::Get({f32}, f64)));
+  EXPECT_THAT(FindMatchingSignature({GetWeakFloatQType()}, GetWeakFloatQType(),
+                                    {QExprOperatorSignature::Get({f32}, f64),
+                                     QExprOperatorSignature::Get({of64}, f64)},
+                                    ""),
+              IsOkAndHolds(QExprOperatorSignature::Get({f32}, f64)));
   // For outputs implicit casting for derived QTypes is not allowed.
   EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({GetWeakFloatQType()},
-                                                        GetWeakFloatQType()),
+      FindMatchingSignature({GetWeakFloatQType()}, GetWeakFloatQType(),
                             {QExprOperatorSignature::Get({f32}, f32),
                              QExprOperatorSignature::Get({f64}, f32)},
                             ""),
@@ -110,7 +105,7 @@ TEST(CastingTest, FindMatchingSignature) {
 
   // Multiple matches, but no one is the best.
   EXPECT_THAT(
-      FindMatchingSignature(QExprOperatorSignature::Get({i32, i32}, i64),
+      FindMatchingSignature({i32, i32}, i64,
                             {QExprOperatorSignature::Get({i32, i64}, i64),
                              QExprOperatorSignature::Get({i64, i32}, i64),
                              // Requires more castings then the others, so it is

@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/strings/string_view.h"
 #include "google/protobuf/text_format.h"
@@ -24,7 +25,7 @@
 
 namespace arolla::testing {
 
-// A simple version of EqualsProto for third_party.
+// A simple version of the EqualsProto predicate for Arolla.
 template <typename TypeProto>
 ::testing::AssertionResult EqualsProto(const TypeProto& actual_proto,
                                        absl::string_view expected_proto_text) {
@@ -46,6 +47,14 @@ template <typename TypeProto>
                                          << differences;
   }
   return ::testing::AssertionSuccess();
+}
+
+// A simple version of the EqualsProto matcher for Arolla.
+inline auto EqualsProto(absl::string_view expected_proto_text) {
+  return ::testing::Truly([expected_proto_text = std::string(
+                               expected_proto_text)](const auto& actual_proto) {
+    return EqualsProto(actual_proto, expected_proto_text);
+  });
 }
 
 }  // namespace arolla::testing

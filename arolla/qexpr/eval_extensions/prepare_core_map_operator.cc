@@ -184,10 +184,15 @@ absl::StatusOr<ExprNodePtr> MapOperatorTransformation(
       std::vector<ExprNodePtr>(data_deps.begin(), data_deps.end()));
 }
 
-AROLLA_REGISTER_INITIALIZER(
-    kRegisterQExprOperators, prepare_core_map_operator, [] {
-      CompilerExtensionRegistry::GetInstance().RegisterNodeTransformationFn(
-          MapOperatorTransformation);
-    });
+AROLLA_INITIALIZER(
+        .reverse_deps =
+            {
+                ::arolla::initializer_dep::kOperators,
+                ::arolla::initializer_dep::kQExprOperators,
+            },
+        .init_fn = [] {
+          CompilerExtensionRegistry::GetInstance().RegisterNodeTransformationFn(
+              MapOperatorTransformation);
+        })
 
 }  // namespace arolla::expr::eval_internal
