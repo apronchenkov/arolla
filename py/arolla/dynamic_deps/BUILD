@@ -135,5 +135,6 @@ cc_shared_library(
         "@com_google_protobuf//:protobuf",
         "@com_google_protobuf//src/google/protobuf/io",
         "@com_google_protobuf//src/google/protobuf/io:gzip_stream",
+        "@icu4c",
     ],
 )
