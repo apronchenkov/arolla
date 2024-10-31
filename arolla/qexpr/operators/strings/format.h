@@ -19,10 +19,10 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
-#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "arolla/memory/optional_value.h"
 #include "arolla/qexpr/operators.h"
@@ -31,9 +31,8 @@
 
 namespace arolla {
 
-constexpr absl::string_view kFormatOperatorName = "strings.format";
-
-class FormatOperatorFamily : public OperatorFamily {
+// strings.printf operator.
+class PrintfOperatorFamily : public OperatorFamily {
  public:
   using returns_status_or = std::true_type;
 
@@ -120,11 +119,27 @@ class FormatOperatorFamily : public OperatorFamily {
   }
 
   // Get format operator for the given parameter types. First parameter is the
-  // format specification, which must have Text qtype. The remaining parameters
+  // format specification, which must have BYTES qtype. The remaining parameters
   // are format arguments, and must match the types required by the first
   // parameter.
   //
-  // The operator's result type is Text.
+  // The operator's result type is BYTES.
+  absl::StatusOr<OperatorPtr> DoGetOperator(
+      absl::Span<const QTypePtr> input_types, QTypePtr output_type) const final;
+};
+
+// strings.format operator.
+class FormatOperatorFamily : public OperatorFamily {
+ private:
+  // Get format operator for the given parameter types.
+  // 1. First parameter is the format specification,
+  //    which must have BYTES qtype.
+  // 2. Second parameter is comma separated names of the arguments for
+  //    formatting. It must be TEXT qtype.
+  // The remaining parameters are format arguments. Number of arguments must
+  // match the number of names in the second parameter.
+  //
+  // The operator's result type is BYTES.
   absl::StatusOr<OperatorPtr> DoGetOperator(
       absl::Span<const QTypePtr> input_types, QTypePtr output_type) const final;
 };

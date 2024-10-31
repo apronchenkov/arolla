@@ -16,7 +16,10 @@
 
 #include <Python.h>
 
+#include <cstddef>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/cord.h"
@@ -25,6 +28,7 @@
 #include "py/arolla/py_utils/py_utils.h"
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
+#include "arolla/util/init_arolla.h"
 
 namespace arolla::python {
 namespace {
@@ -37,6 +41,7 @@ PYBIND11_MODULE(testing_clib, m) {
   struct AbslStatus {
     absl::Status status;
   };
+  InitArolla();
 
   py::class_<AbslStatus> absl_status(m, "AbslStatus");
   absl_status
@@ -109,6 +114,11 @@ PYBIND11_MODULE(testing_clib, m) {
   });
 
   m.def("can_call_check_signal", [] { return PyErr_CanCallCheckSignal(); });
+
+  m.def("default_raise_from_status", [](const AbslStatus& absl_status) {
+    DefaultSetPyErrFromStatus(absl_status.status);
+    throw py::error_already_set();
+  });
 
   m.def("lookup_type_member", [](py::type type, py::str attr) -> py::object {
     auto result = PyType_LookupMemberOrNull(

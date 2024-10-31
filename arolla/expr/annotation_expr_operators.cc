@@ -15,7 +15,10 @@
 #include "arolla/expr/annotation_expr_operators.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
+#include "absl/base/no_destructor.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
@@ -28,21 +31,23 @@
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/util/fingerprint.h"
-#include "arolla/util/indestructible.h"
 #include "arolla/util/text.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::expr {
 
 ExprOperatorPtr QTypeAnnotation::Make() {
-  static const Indestructible<ExprOperatorPtr> result(
-      std::make_shared<QTypeAnnotation>());
+  static const absl::NoDestructor<ExprOperatorPtr> result(
+      std::make_shared<QTypeAnnotation>(""));
   return *result;
 }
 
-QTypeAnnotation::QTypeAnnotation()
+QTypeAnnotation::QTypeAnnotation(std::string aux_policy)
     : ExprOperatorWithFixedSignature(
-          "annotation.qtype", ExprOperatorSignature{{"expr"}, {"qtype"}},
+          "annotation.qtype",
+          ExprOperatorSignature(
+              /* parameters=*/{{"expr"}, {"qtype"}},
+              /* aux_policy=*/std::move(aux_policy)),
           "QType annotation.",
           FingerprintHasher("::arolla::expr::QTypeAnnotation").Finish()) {}
 
@@ -69,14 +74,16 @@ absl::StatusOr<ExprAttributes> QTypeAnnotation::InferAttributes(
 }
 
 ExprOperatorPtr NameAnnotation::Make() {
-  static const Indestructible<ExprOperatorPtr> result(
-      std::make_shared<NameAnnotation>());
+  static const absl::NoDestructor result(std::make_shared<NameAnnotation>(""));
   return *result;
 }
 
-NameAnnotation::NameAnnotation()
+NameAnnotation::NameAnnotation(std::string aux_policy)
     : ExprOperatorWithFixedSignature(
-          "annotation.name", ExprOperatorSignature{{"expr"}, {"name"}},
+          "annotation.name",
+          ExprOperatorSignature(
+              /*parameters=*/{{"expr"}, {"name"}},
+              /*aux_policy=*/std::move(aux_policy)),
           "Name annotation.",
           FingerprintHasher("::arolla::expr::NameAnnotation").Finish()) {}
 
@@ -94,8 +101,7 @@ absl::StatusOr<ExprAttributes> NameAnnotation::InferAttributes(
 }
 
 ExprOperatorPtr ExportAnnotation::Make() {
-  static const Indestructible<ExprOperatorPtr> result(
-      std::make_shared<ExportAnnotation>());
+  static const absl::NoDestructor result(std::make_shared<ExportAnnotation>());
   return *result;
 }
 
@@ -122,7 +128,7 @@ absl::StatusOr<ExprAttributes> ExportAnnotation::InferAttributes(
 }
 
 ExprOperatorPtr ExportValueAnnotation::Make() {
-  static const Indestructible<ExprOperatorPtr> result(
+  static const absl::NoDestructor result(
       std::make_shared<ExportValueAnnotation>());
   return *result;
 }

@@ -20,6 +20,7 @@
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -66,6 +67,11 @@ struct ExprOperatorSignature {
   // Convenience constructor.
   ExprOperatorSignature(std::initializer_list<Parameter> parameters)
       : parameters(parameters) {}
+
+  // Convenience constructor.
+  ExprOperatorSignature(std::initializer_list<Parameter> parameters,
+                        std::string aux_policy)
+      : parameters(parameters), aux_policy(std::move(aux_policy)) {}
 
   // Makes a simple signature: arg1, arg2, ..., argn
   static ExprOperatorSignature MakeArgsN(size_t n);

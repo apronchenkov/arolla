@@ -14,7 +14,8 @@
 //
 // Python extension module with C++ primitives for arolla.types.qvalue.*.
 //
-#include <functional>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -265,7 +266,7 @@ PYBIND11_MODULE(clib, m) {
                 std::move(qtype_constraints[i]);
           }
           base_lambda_operator = LambdaOperator::Make(
-              name, std::move(signature), std::move(lambda_body_expr), doc);
+              name, signature, std::move(lambda_body_expr), doc);
           if (base_lambda_operator.ok()) {
             result = RestrictedLambdaOperator::Make(
                 *std::move(base_lambda_operator), std::move(constraints));

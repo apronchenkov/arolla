@@ -121,7 +121,7 @@ def set_expr_view_for_qtype_family(
 #
 #     def method(expr: Expr, *args, **kwargs): ...
 #
-#     rl.abc.unsafe_register_default_expr_view_member('method', method)
+#     arolla.abc.unsafe_register_default_expr_view_member('method', method)
 #
 #     _ = expr.method()
 #
@@ -130,7 +130,7 @@ def set_expr_view_for_qtype_family(
 #     @property
 #     def attr(expr: Expr): ...
 #
-#     rl.abc.unsafe_register_default_expr_view_member('attr', attr)
+#     arolla.abc.unsafe_register_default_expr_view_member('attr', attr)
 #
 #     _ = expr.attr
 #
@@ -146,6 +146,7 @@ EXPR_VIEW_MAGIC_MEMBER_ALLOWLIST = frozenset({
     '__divmod__',
     '__eq__',
     '__floordiv__',
+    '__format__',
     '__ge__',
     '__getattr__',
     '__getitem__',
@@ -219,7 +220,7 @@ def _extract_expr_view_members(
 ) -> dict[str, ExprViewMember]:
   """Returns a dictionary of expr-view members."""
   if not issubclass(expr_view, ExprView):
-    raise TypeError('expected a subclass of rl.abc.ExprView')
+    raise TypeError('expected a subclass of arolla.abc.ExprView')
   result = dict()
   reference_members = {}
   for c in reversed(ExprView.__mro__):

@@ -21,9 +21,9 @@ from arolla.abc import utils as abc_utils
 #
 # IMPORTANT: The primary purpose of this class is to be a low-level building
 # block. Particularly, it doesn't implement any caching facility. You should
-# possibly prefer using rl.abc.eval_expr().
+# possibly prefer using arolla.abc.eval_expr().
 #
-# class CompileExpr:
+# class CompiledExpr:
 #
 #   Methods defined here:
 #

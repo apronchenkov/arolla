@@ -18,6 +18,8 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "arolla/expr/expr.h"
 #include "arolla/expr/expr_attributes.h"
 #include "arolla/expr/expr_operator_signature.h"
@@ -26,56 +28,79 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/tuple_qtype.h"
 #include "arolla/util/bytes.h"
-#include "arolla/util/init_arolla.h"
 #include "arolla/util/text.h"
 #include "arolla/util/unit.h"
 
 namespace arolla::operator_loader {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::arolla::expr::CallOp;
 using ::arolla::expr::ExprOperatorSignature;
 using ::arolla::expr::Leaf;
-using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 using Attr = ::arolla::expr::ExprAttributes;
 
-class ParameterQTypesTest : public ::testing::Test {
- protected:
-  void SetUp() override { InitArolla(); }
-};
+TEST(ParameterQTypesTest, ExtractParameterQTypes_NonVariadicSignature) {
+  ASSERT_OK_AND_ASSIGN(auto sig,
+                       ExprOperatorSignature::Make("first, second=", kUnit));
+  EXPECT_THAT(
+      ExtractParameterQTypes(
+          sig, {Attr{GetQType<int32_t>()}, Attr{GetQType<float>()}}),
+      IsOkAndHolds(UnorderedElementsAre(Pair("first", GetQType<int32_t>()),
+                                        Pair("second", GetQType<float>()))));
+  EXPECT_THAT(ExtractParameterQTypes(sig, {Attr{GetNothingQType()}, Attr{}}),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       "inputs of type NOTHING are unsupported"));
+  EXPECT_THAT(ExtractParameterQTypes(sig, {}),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       "unexpected number of inputs"));
+  EXPECT_THAT(ExtractParameterQTypes(sig, {Attr{}}),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       "unexpected number of inputs"));
+  EXPECT_THAT(ExtractParameterQTypes(sig, {Attr{}, Attr{}, Attr{}}),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       "unexpected number of inputs"));
+}
 
-TEST_F(ParameterQTypesTest, ExtractParameterQTypes) {
+TEST(ParameterQTypesTest, ExtractParameterQTypes_VariadicSignature) {
   ASSERT_OK_AND_ASSIGN(
       auto sig, ExprOperatorSignature::Make("first, second=, *args", kUnit));
-  EXPECT_THAT(ExtractParameterQTypes(sig, {}), IsEmpty());
-  EXPECT_THAT(ExtractParameterQTypes(sig, {Attr{GetQType<int32_t>()}}),
-              UnorderedElementsAre(Pair("first", GetQType<int32_t>())));
-  EXPECT_THAT(ExtractParameterQTypes(
-                  sig, {Attr{GetQType<int32_t>()}, Attr{GetQType<float>()}}),
-              UnorderedElementsAre(Pair("first", GetQType<int32_t>()),
-                                   Pair("second", GetQType<float>()),
-                                   Pair("args", MakeTupleQType({}))));
+  EXPECT_THAT(
+      ExtractParameterQTypes(
+          sig, {Attr{GetQType<int32_t>()}, Attr{GetQType<float>()}}),
+      IsOkAndHolds(UnorderedElementsAre(Pair("first", GetQType<int32_t>()),
+                                        Pair("second", GetQType<float>()),
+                                        Pair("args", MakeTupleQType({})))));
   EXPECT_THAT(
       ExtractParameterQTypes(
           sig, {Attr{GetQType<int32_t>()}, Attr{GetQType<float>()},
                 Attr{GetQType<Bytes>()}}),
-      UnorderedElementsAre(Pair("first", GetQType<int32_t>()),
-                           Pair("second", GetQType<float>()),
-                           Pair("args", MakeTupleQType({GetQType<Bytes>()}))));
+      IsOkAndHolds(UnorderedElementsAre(
+          Pair("first", GetQType<int32_t>()), Pair("second", GetQType<float>()),
+          Pair("args", MakeTupleQType({GetQType<Bytes>()})))));
   EXPECT_THAT(
       ExtractParameterQTypes(
           sig, {Attr{GetQType<int32_t>()}, Attr{GetQType<float>()},
                 Attr{GetQType<Bytes>()}, Attr{GetQType<Text>()}}),
-      UnorderedElementsAre(
+      IsOkAndHolds(UnorderedElementsAre(
           Pair("first", GetQType<int32_t>()), Pair("second", GetQType<float>()),
-          Pair("args", MakeTupleQType({GetQType<Bytes>(), GetQType<Text>()}))));
-  EXPECT_THAT(ExtractParameterQTypes(sig, {Attr{}, Attr{}, Attr{}, Attr{}}),
-              IsEmpty());
+          Pair("args",
+               MakeTupleQType({GetQType<Bytes>(), GetQType<Text>()})))));
+  EXPECT_THAT(ExtractParameterQTypes(sig, {Attr{GetNothingQType()}, Attr{}}),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       "inputs of type NOTHING are unsupported"));
+  EXPECT_THAT(ExtractParameterQTypes(sig, {}),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       "unexpected number of inputs"));
+  EXPECT_THAT(ExtractParameterQTypes(sig, {Attr{}}),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       "unexpected number of inputs"));
 }
 
-TEST_F(ParameterQTypesTest, MakeParameterQTypeModelExecutor) {
+TEST(ParameterQTypesTest, MakeParameterQTypeModelExecutor) {
   ASSERT_OK_AND_ASSIGN(
       auto expr,
       CallOp("core.make_tuple", {Leaf("first"), Leaf("second"), Leaf("args")}));
@@ -102,7 +127,7 @@ TEST_F(ParameterQTypesTest, MakeParameterQTypeModelExecutor) {
   }
 }
 
-TEST_F(ParameterQTypesTest, FormatParameterQTypes) {
+TEST(ParameterQTypesTest, FormatParameterQTypes) {
   EXPECT_EQ(FormatParameterQTypes({
                 {"i32", GetQType<int32_t>()},
                 {"i64", GetQType<int64_t>()},

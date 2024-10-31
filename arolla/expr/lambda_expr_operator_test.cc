@@ -34,8 +34,6 @@
 #include "arolla/qtype/typed_ref.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/util/bytes.h"
-#include "arolla/util/init_arolla.h"
-#include "arolla/util/unit.h"
 
 namespace arolla::expr {
 namespace {
@@ -51,11 +49,7 @@ using ::testing::HasSubstr;
 
 using Attr = ExprAttributes;
 
-class LambdaOperatorTest : public ::testing::Test {
-  void SetUp() override { InitArolla(); }
-};
-
-TEST_F(LambdaOperatorTest, NoParameters) {
+TEST(LambdaOperatorTest, NoParameters) {
   auto foobar = Literal<int32_t>(0xf00baa);
   ASSERT_OK_AND_ASSIGN(
       const auto lambda_op,
@@ -75,7 +69,7 @@ TEST_F(LambdaOperatorTest, NoParameters) {
   EXPECT_THAT(lambda_op->GetDoc(), IsOkAndHolds(""));
 }
 
-TEST_F(LambdaOperatorTest, SingleArgument) {
+TEST(LambdaOperatorTest, SingleArgument) {
   auto f1 = Literal<float>(1.0);
   auto p0 = Placeholder("p0");
   auto p1 = Placeholder("p1");
@@ -109,15 +103,15 @@ TEST_F(LambdaOperatorTest, SingleArgument) {
   }
 }
 
-TEST_F(LambdaOperatorTest, General) {
+TEST(LambdaOperatorTest, General) {
   auto x = Leaf("x");
   auto y = Leaf("y");
-  auto u = Literal(kUnit);
+  auto z = Literal(0);
   auto p0 = Placeholder("p0");
   auto p1 = Placeholder("p1");
 
   ASSERT_OK_AND_ASSIGN(auto lambda_signature,
-                       ExprOperatorSignature::Make("p0, p1=", kUnit));
+                       ExprOperatorSignature::Make("p0, p1=", 0));
   ASSERT_OK_AND_ASSIGN(auto lambda_body, CallOp("math.add", {p0, p1}));
   ASSERT_OK_AND_ASSIGN(auto lambda_op,
                        LambdaOperator::Make(lambda_signature, lambda_body));
@@ -134,11 +128,11 @@ TEST_F(LambdaOperatorTest, General) {
   {  // Default value for second parameter.
     ASSERT_OK_AND_ASSIGN(auto folded_expr, CallOp(lambda_op, {x}));
     ASSERT_OK_AND_ASSIGN(auto expected_folded_expr,
-                         MakeOpNode(lambda_op, {x, u}));
+                         MakeOpNode(lambda_op, {x, z}));
     EXPECT_THAT(folded_expr, EqualsExpr(expected_folded_expr));
     ASSERT_OK_AND_ASSIGN(auto unfolded_expr, ToLowerNode(folded_expr));
     ASSERT_OK_AND_ASSIGN(auto expected_unfolded_expr,
-                         CallOp("math.add", {x, u}));
+                         CallOp("math.add", {x, z}));
     EXPECT_THAT(unfolded_expr, EqualsExpr(expected_unfolded_expr));
   }
   {  // All parameters are explicit.
@@ -153,7 +147,7 @@ TEST_F(LambdaOperatorTest, General) {
   }
 }
 
-TEST_F(LambdaOperatorTest, MakeLambdaOperator) {
+TEST(LambdaOperatorTest, MakeLambdaOperator) {
   ASSERT_OK_AND_ASSIGN(
       auto lambda_op,
       MakeLambdaOperator(
@@ -168,7 +162,7 @@ TEST_F(LambdaOperatorTest, MakeLambdaOperator) {
       StatusIs(absl::StatusCode::kFailedPrecondition, HasSubstr("~~~")));
 }
 
-TEST_F(LambdaOperatorTest, QTypePropagation) {
+TEST(LambdaOperatorTest, QTypePropagation) {
   ASSERT_OK_AND_ASSIGN(auto lambda_signature,
                        ExprOperatorSignature::Make("x, y"));
   ASSERT_OK_AND_ASSIGN(
@@ -193,14 +187,14 @@ TEST_F(LambdaOperatorTest, QTypePropagation) {
                    "calling test.lambda with args {b'', int64{57}}")));
 }
 
-TEST_F(LambdaOperatorTest, QValuePropagation) {
+TEST(LambdaOperatorTest, QValuePropagation) {
   ASSERT_OK_AND_ASSIGN(auto op,
                        MakeLambdaOperator("test.lambda", Placeholder("x")));
   ASSERT_OK_AND_ASSIGN(auto expr, CallOp(op, {Literal(1)}));
   EXPECT_THAT(expr->attr(), EqualsAttr(TypedRef::FromValue(1)));
 }
 
-TEST_F(LambdaOperatorTest, BadLambdaBody) {
+TEST(LambdaOperatorTest, BadLambdaBody) {
   const ExprOperatorSignature lambda_signature{{"p"}};
   EXPECT_OK(LambdaOperator::Make(lambda_signature, Placeholder("p")));
 
@@ -212,7 +206,7 @@ TEST_F(LambdaOperatorTest, BadLambdaBody) {
               StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
-TEST_F(LambdaOperatorTest, VariadicArg) {
+TEST(LambdaOperatorTest, VariadicArg) {
   ASSERT_OK_AND_ASSIGN(
       auto head_op,
       MakeLambdaOperator(ExprOperatorSignature::Make("head, *_tail"),
@@ -246,7 +240,7 @@ TEST_F(LambdaOperatorTest, VariadicArg) {
       IsOkAndHolds(EqualsAttr(nullptr)));
 }
 
-TEST_F(LambdaOperatorTest, VariadicArgInferAttributes) {
+TEST(LambdaOperatorTest, VariadicArgInferAttributes) {
   ASSERT_OK_AND_ASSIGN(auto op,
                        MakeLambdaOperator(ExprOperatorSignature::Make("*args"),
                                           Placeholder("args")));
@@ -270,7 +264,7 @@ TEST_F(LambdaOperatorTest, VariadicArgInferAttributes) {
   }
 }
 
-TEST_F(LambdaOperatorTest, OutputQTypeRequiresLiteral) {
+TEST(LambdaOperatorTest, OutputQTypeRequiresLiteral) {
   {
     ASSERT_OK_AND_ASSIGN(auto lambda_signature,
                          ExprOperatorSignature::Make("x, y"));
@@ -299,7 +293,7 @@ TEST_F(LambdaOperatorTest, OutputQTypeRequiresLiteral) {
   }
 }
 
-TEST_F(LambdaOperatorTest, GetDoc) {
+TEST(LambdaOperatorTest, GetDoc) {
   auto lambda_body = Placeholder("x");
   ASSERT_OK_AND_ASSIGN(
       auto op, LambdaOperator::Make("lambda_op_with_docstring",
@@ -309,7 +303,7 @@ TEST_F(LambdaOperatorTest, GetDoc) {
   ASSERT_THAT(op->GetDoc(), IsOkAndHolds("doc-string"));
 }
 
-TEST_F(LambdaOperatorTest, SuppressUnusedWarning) {
+TEST(LambdaOperatorTest, SuppressUnusedWarning) {
   {
     ASSERT_OK_AND_ASSIGN(
         auto expr, CallOp("math.add", {Placeholder("x"), Placeholder("y")}));

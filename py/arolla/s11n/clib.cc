@@ -13,12 +13,13 @@
 // limitations under the License.
 //
 // Python extension module with Arolla serialization primitives.
-//
 
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "py/arolla/abc/pybind11_utils.h"
@@ -28,6 +29,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 #include "pybind11_abseil/absl_casters.h"
+#include "pybind11_protobuf/native_proto_caster.h"
 #include "arolla/expr/expr_node.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/serialization/decode.h"
@@ -51,23 +53,70 @@ using ::arolla::serialization::EncodeAsRiegeliData;
 using ::arolla::serialization::EncodeExprSet;
 using ::arolla::serialization_base::ContainerProto;
 
+absl::StatusOr<std::string> SerializeProtoAsString(
+    absl::StatusOr<ContainerProto>&& proto) {
+  if (!proto.ok()) {
+    return std::move(proto).status();
+  }
+  std::string result;
+  if (!proto->SerializeToString(&result)) {
+    return absl::InternalError("failed to serialize ContainerProto");
+  }
+  return result;
+}
+
 PYBIND11_MODULE(clib, m) {
   py::options options;
   options.disable_function_signatures();
 
+  pybind11_protobuf::ImportNativeProtoCasters();
+
+  // Note: We typically release the GIL during serialization, as it's
+  // a time-consuming operation that doesn't rely on the Python interpreter.
+  // This allows other Python threads to execute useful tasks in parallel.
+
   // go/keep-sorted start block=yes newline_separated=yes
+  m.def(
+      "dump_proto_expr_set",
+      [](const absl::flat_hash_map<std::string, ExprNodePtr>& expr_set) {
+        absl::StatusOr<ContainerProto> result;
+        {
+          py::gil_scoped_release guard;
+          result = EncodeExprSet(expr_set);
+        }
+        return pybind11_unstatus_or(std::move(result));
+      },
+      py::arg("container_proto"), py::pos_only(),
+      py::doc("dump_proto_expr_set(expr_set, /)\n"
+              "--\n\n"
+              "Encodes a set of named expressions into a proto container.\n\n"
+              "Note: The order of the dict keys does not guarantee to be "
+              "preserved."));
+
+  m.def(
+      "dump_proto_many",
+      [](const std::vector<TypedValue>& values,
+         const std::vector<ExprNodePtr>& exprs) {
+        absl::StatusOr<ContainerProto> result;
+        {
+          py::gil_scoped_release guard;
+          result = Encode(values, exprs);
+        }
+        return pybind11_unstatus_or(std::move(result));
+      },
+      py::arg("values"), py::arg("exprs"),
+      py::doc(
+          "dump_proto_many(values, exprs)\n"
+          "--\n\n"
+          "Encodes the given values and expressions into a proto container."));
+
   m.def(
       "dumps_expr_set",
       [](const absl::flat_hash_map<std::string, ExprNodePtr>& expr_set) {
         absl::StatusOr<std::string> result;
         {
           py::gil_scoped_release guard;
-          auto container_proto = EncodeExprSet(expr_set);
-          if (container_proto.ok()) {
-            result = container_proto->SerializeAsString();
-          } else {
-            result = container_proto.status();
-          }
+          result = SerializeProtoAsString(EncodeExprSet(expr_set));
         }
         return py::bytes(pybind11_unstatus_or(std::move(result)));
       },
@@ -86,12 +135,7 @@ PYBIND11_MODULE(clib, m) {
         absl::StatusOr<std::string> result;
         {
           py::gil_scoped_release guard;
-          auto container_proto = Encode(values, exprs);
-          if (container_proto.ok()) {
-            result = container_proto->SerializeAsString();
-          } else {
-            result = container_proto.status();
-          }
+          result = SerializeProtoAsString(Encode(values, exprs));
         }
         return py::bytes(pybind11_unstatus_or(std::move(result)));
       },
@@ -99,6 +143,41 @@ PYBIND11_MODULE(clib, m) {
       py::doc("dumps_many(values, exprs)\n"
               "--\n\n"
               "Encodes the given values and expressions into a bytes object."));
+
+  m.def(
+      "load_proto_expr_set",
+      [](const ContainerProto& container_proto) {
+        decltype(DecodeExprSet(container_proto)) result;
+        {
+          py::gil_scoped_release guard;
+          result = DecodeExprSet(container_proto);
+        }
+        return pybind11_unstatus_or(std::move(result));
+      },
+      py::arg("container_proto"), py::pos_only(),
+      py::doc("load_proto_expr_set(container_proto, /)\n"
+              "--\n\n"
+              "Decodes a set of named expressions from the given proto "
+              "container.\n\n"
+              "Note: The order of the keys in the resulting dict is "
+              "non-deterministic."));
+
+  m.def(
+      "load_proto_many",
+      [](const ContainerProto& container_proto) {
+        absl::StatusOr<DecodeResult> result;
+        {
+          py::gil_scoped_release guard;
+          result = Decode(container_proto);
+        }
+        pybind11_throw_if_error(result.status());
+        return std::pair(std::move(result->values), std::move(result->exprs));
+      },
+      py::arg("container_proto"), py::pos_only(),
+      py::doc(
+          "load_proto_many(container_proto, /)\n"
+          "--\n\n"
+          "Decodes values and expressions from the given proto container."));
 
   m.def(
       "loads_expr_set",
@@ -130,7 +209,7 @@ PYBIND11_MODULE(clib, m) {
         {
           py::gil_scoped_release guard;
           ContainerProto container_proto;
-          if (!container_proto.ParseFromString(data)) {
+          if (!container_proto.ParseFromString(data_view)) {
             throw py::value_error("could not parse ContainerProto");
           }
           result = Decode(container_proto);

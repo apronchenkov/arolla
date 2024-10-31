@@ -108,8 +108,7 @@ absl::StatusOr<Executor> Compile(const ExprNodePtr& expr,
       WildcardInputLoader<InputQValues>::BuildFromCallbackAccessorFn(
           accessor, input_qtypes));
   return CompileModelExecutor<TypedValue>(
-      expr, std::move(loader),
-      ModelExecutorOptions{.eval_options = std::move(options)});
+      expr, loader, ModelExecutorOptions{.eval_options = std::move(options)});
 }
 
 // (internal) Detect common compilation errors.
@@ -483,7 +482,7 @@ PyTypeObject PyCompiledExpr_Type = {
                "IMPORTANT: The primary purpose of this class is to be a "
                "low-level building\nblock. Particularly, it doesn't implement "
                "any caching facility. You should\npossibly prefer using "
-               "rl.abc.compile_expr()."),
+               "arolla.abc.compile_expr()."),
     .tp_methods = kPyCompiledExpr_methods,
     .tp_new = PyCompiledExpr_new,
 };

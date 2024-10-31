@@ -15,7 +15,9 @@
 #include "arolla/qexpr/optools.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -28,7 +30,6 @@
 #include "arolla/qexpr/operators.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
-#include "arolla/util/init_arolla.h"
 
 namespace test_namespace {
 namespace {
@@ -36,7 +37,12 @@ using ::absl_testing::IsOkAndHolds;
 using ::testing::Eq;
 
 AROLLA_REGISTER_QEXPR_OPERATOR("optools_test.to_string_from_lambda",
-                               [](int32_t x) { return absl::StrCat(x); });
+                               [](int32_t x) {
+                                 // Tests that the lambda body can contain
+                                 // commas.
+                                 std::pair<int32_t, int32_t> p(x, x);
+                                 return absl::StrCat(p.first);
+                               });
 
 std::string ToString(int32_t x) { return absl::StrCat(x); }
 AROLLA_REGISTER_QEXPR_OPERATOR("optools_test.to_string_from_function",
@@ -49,47 +55,47 @@ struct ToStringOp {
 AROLLA_REGISTER_QEXPR_OPERATOR("optools_test.to_string_from_functor",
                                ToStringOp<int32_t>());
 
+// Templated to test that commas are supported during registrations.
+template <typename T, typename U>
 class ToStringOperatorFamily : public arolla::OperatorFamily {
  public:
   absl::StatusOr<arolla::OperatorPtr> DoGetOperator(
       absl::Span<const arolla::QTypePtr> input_types,
       arolla::QTypePtr output_type) const final {
-    if (input_types.size() != 1 ||
-        input_types[0] != arolla::GetQType<int32_t>()) {
+    if (input_types.size() != 1 || input_types[0] != arolla::GetQType<T>()) {
       return absl::InvalidArgumentError(
           "the only supported input type is int32");
     }
-    return arolla::OperatorFactory()
-        .WithName("optools_test.to_string_family")
-        .BuildFromFunction(ToString);
+    if (output_type != arolla::GetQType<U>()) {
+      return absl::InvalidArgumentError(
+          "the only supported output type is string");
+    }
+    return arolla::QExprOperatorFromFunction(ToString);
   }
 };
-AROLLA_REGISTER_QEXPR_OPERATOR_FAMILY("optools_test.to_string_from_family",
-                                      ToStringOperatorFamily);
+AROLLA_REGISTER_QEXPR_OPERATOR_FAMILY(
+    "optools_test.to_string_from_family",
+    std::make_unique<ToStringOperatorFamily<int32_t, std::string>>());
 
-struct OptoolsTest : public ::testing::Test {
-  void SetUp() override { arolla::InitArolla(); }
-};
-
-TEST_F(OptoolsTest, FromFunction) {
+TEST(OptoolsTest, FromFunction) {
   EXPECT_THAT(arolla::InvokeOperator<std::string>(
                   "optools_test.to_string_from_function", 57),
               IsOkAndHolds(Eq("57")));
 }
 
-TEST_F(OptoolsTest, FromLambda) {
+TEST(OptoolsTest, FromLambda) {
   EXPECT_THAT(arolla::InvokeOperator<std::string>(
                   "optools_test.to_string_from_lambda", 57),
               IsOkAndHolds(Eq("57")));
 }
 
-TEST_F(OptoolsTest, FromFunctor) {
+TEST(OptoolsTest, FromFunctor) {
   EXPECT_THAT(arolla::InvokeOperator<std::string>(
                   "optools_test.to_string_from_functor", 57),
               IsOkAndHolds(Eq("57")));
 }
 
-TEST_F(OptoolsTest, FromFamily) {
+TEST(OptoolsTest, FromFamily) {
   EXPECT_THAT(arolla::InvokeOperator<std::string>(
                   "optools_test.to_string_from_family", 57),
               IsOkAndHolds(Eq("57")));

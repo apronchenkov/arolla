@@ -13,6 +13,7 @@
 // limitations under the License.
 //
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -27,17 +28,12 @@
 #include "arolla/io/accessors_input_loader.h"
 #include "arolla/io/input_loader.h"
 #include "arolla/memory/buffer.h"
-#include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::expr {
 namespace {
 
 using ::testing::ElementsAre;
-
-class ModelExecutor : public ::testing::Test {
-  void SetUp() override { InitArolla(); }
-};
 
 struct Doc {
   double x;
@@ -90,7 +86,7 @@ absl::StatusOr<ExprNodePtr> CreateModel() {
   return CallOp("math.sum", {x_times_y, edge});
 }
 
-TEST_F(ModelExecutor, SimpleExpr) {
+TEST(ModelExecutor, SimpleExpr) {
   ASSERT_OK_AND_ASSIGN(auto dot_product, CreateModel());
 
   ASSERT_OK_AND_ASSIGN(auto input_loader, CreateInputLoader());

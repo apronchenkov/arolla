@@ -16,7 +16,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -34,7 +33,6 @@
 #include "arolla/qtype/optional_qtype.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/tuple_qtype.h"
-#include "arolla/util/fingerprint.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla {
@@ -63,10 +61,9 @@ class DecisionForestBoundOperator : public BoundOperator {
 class BatchedDecisionForestOperator : public QExprOperator {
  public:
   BatchedDecisionForestOperator(
-      std::shared_ptr<BatchedForestEvaluator> evaluator, std::string op_name,
+      std::shared_ptr<BatchedForestEvaluator> evaluator,
       const QExprOperatorSignature* op_type)
-      : QExprOperator(std::move(op_name), op_type),
-        evaluator_(std::move(evaluator)) {}
+      : QExprOperator(op_type), evaluator_(std::move(evaluator)) {}
 
  private:
   absl::StatusOr<std::unique_ptr<BoundOperator>> DoBind(
@@ -109,14 +106,8 @@ absl::StatusOr<OperatorPtr> CreateBatchedDecisionForestOperator(
       op_signature->output_type(), groups.size()));
   ASSIGN_OR_RETURN(auto evaluator,
                    BatchedForestEvaluator::Compile(*decision_forest, groups));
-
-  FingerprintHasher hasher("::arolla::BatchedDecisionForestOperator");
-  hasher.Combine(decision_forest->fingerprint()).CombineSpan(groups);
-  std::string op_name =
-      absl::StrFormat("core.batched_decision_forest_evaluator_%s",
-                      std::move(hasher).Finish().AsString());
   return OperatorPtr(std::make_shared<BatchedDecisionForestOperator>(
-      std::move(evaluator), std::move(op_name), op_signature));
+      std::move(evaluator), op_signature));
 }
 
 absl::Status ValidateBatchedDecisionForestOutputType(const QTypePtr output,

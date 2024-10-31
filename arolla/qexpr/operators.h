@@ -61,15 +61,17 @@ class QExprOperator {
   virtual ~QExprOperator() = default;
 
   // Constructs a QExprOperator with the provided signature.
-  explicit QExprOperator(std::string name,
+  explicit QExprOperator(const QExprOperatorSignature* signature)
+      : signature_(signature) {}
+
+  // TODO: Constructor for compatibility with checked-in generated
+  // code, remove it.
+  explicit QExprOperator(std::string /*name*/,
                          const QExprOperatorSignature* signature)
-      : name_(std::move(name)), signature_(signature) {}
+      : signature_(signature) {}
 
   // Returns the operator's signature.
   const QExprOperatorSignature* signature() const { return signature_; }
-
-  // Returns the operator's name.
-  absl::string_view name() const { return name_; }
 
   // Bind this operation to the provided lists of input and output slots.
   absl::StatusOr<std::unique_ptr<BoundOperator>> Bind(
@@ -83,7 +85,6 @@ class QExprOperator {
   virtual absl::StatusOr<std::unique_ptr<BoundOperator>> DoBind(
       absl::Span<const TypedSlot> input_slots, TypedSlot output_slot) const = 0;
 
-  std::string name_;
   const QExprOperatorSignature* signature_;
 };
 
@@ -95,6 +96,25 @@ class InlineOperator : public QExprOperator {
 // Returns the result of an operator evaluation with given inputs.
 absl::StatusOr<TypedValue> InvokeOperator(const QExprOperator& op,
                                           absl::Span<const TypedValue> args);
+
+// Returns the result of an operator evaluation with given inputs.
+//
+// All InputTypes and OutputType must have corresponding QType. OutputType must
+// be specified explicitly.
+//
+// Example:
+//   InvokeOperator<int64_t>(add_op, 3, 19)
+//
+template <typename OutputType, typename... InputTypes>
+absl::StatusOr<OutputType> InvokeOperator(const QExprOperator& op,
+                                          InputTypes&&... inputs) {
+  ASSIGN_OR_RETURN(
+      auto output,
+      InvokeOperator(
+          op, {TypedValue::FromValue(std::forward<InputTypes>(inputs))...}));
+  ASSIGN_OR_RETURN(auto result_ref, output.template As<OutputType>());
+  return result_ref.get();
+}
 
 // Returns the result of an operator evaluation with given inputs.
 //
@@ -207,7 +227,8 @@ class OperatorRegistry final : public OperatorDirectory {
   //
   // If you plan to use the `overwrite_level`, please contact the Arolla
   // team first.
-  absl::Status RegisterOperator(OperatorPtr op, size_t overwrite_priority = 0);
+  absl::Status RegisterOperator(absl::string_view name, OperatorPtr op,
+                                size_t overwrite_priority = 0);
 
   // Returns list of all registered operators.
   std::vector<std::string> ListRegisteredOperators();

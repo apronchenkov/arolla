@@ -72,9 +72,10 @@ PyObject* PyExpr_repr(PyObject* self) {
 }
 
 Py_hash_t PyExpr_hash(PyObject* /*self*/) {
-  PyErr_Format(PyExc_TypeError,
-               "unhashable type: '%s'; please consider using `rl.quote(expr)`",
-               PyExpr_Type.tp_name);
+  PyErr_Format(
+      PyExc_TypeError,
+      "unhashable type: '%s'; please consider using `arolla.quote(expr)`",
+      PyExpr_Type.tp_name);
   return -1;
 }
 
@@ -297,11 +298,11 @@ PyObject* PyExpr_as_sequence_item(PyObject* self, Py_ssize_t index) {
 }
 
 PySequenceMethods kPyExpr_as_sequence = {
-  .sq_item = PyExpr_as_sequence_item,
+    .sq_item = PyExpr_as_sequence_item,
 };
 
 PyObject* PyExpr_methods_format(PyObject* self, PyObject* py_str_format) {
-  const auto& self_fields = PyExpr_fields(self);
+  auto& self_fields = PyExpr_fields(self);
   Py_ssize_t format_size;
   const char* format_data =
       PyUnicode_AsUTF8AndSize(py_str_format, &format_size);
@@ -312,11 +313,18 @@ PyObject* PyExpr_methods_format(PyObject* self, PyObject* py_str_format) {
   std::string buffer;
   if (format.empty()) {
     buffer = ToDebugString(self_fields.expr, /*verbose=*/false);
-  } else if (format == "v") {
+  } else if (format == "verbose") {
     buffer = ToDebugString(self_fields.expr, /*verbose=*/true);
   } else {
+    self_fields.expr_views.Actualize(self_fields.expr);
+    if (auto method = self_fields.expr_views.LookupMemberOrNull("__format__");
+        method != nullptr) {
+      PyObject* args[2] = {self, py_str_format};
+      return PyObject_VectorcallMember(std::move(method), args, 2, nullptr)
+          .release();
+    }
     PyErr_Format(PyExc_ValueError,
-                 "expected format_spec='' or 'v', got format_spec=%R",
+                 "expected format_spec='' or 'verbose', got format_spec=%R",
                  py_str_format);
     return nullptr;
   }

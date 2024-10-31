@@ -33,8 +33,13 @@
 namespace arolla {
 
 StringsBuffer::Builder::Builder(int64_t max_size, RawBufferFactory* factory)
+    : Builder(max_size, max_size * 16, factory) {}
+
+StringsBuffer::Builder::Builder(int64_t max_size,
+                                int64_t initial_char_buffer_size,
+                                RawBufferFactory* factory)
     : factory_(factory) {
-  size_t initial_char_buffer_size = max_size * 16;
+  DCHECK_GE(initial_char_buffer_size, 0);
   DCHECK_LT(initial_char_buffer_size, std::numeric_limits<offset_type>::max());
   // max_size of Offsets is always allocated even if the actual number is lower.
   // It's because we use a single allocation for both offsets and characters.
@@ -81,6 +86,25 @@ StringsBuffer StringsBuffer::Builder::Build(int64_t size) && {
   SimpleBuffer<char> characters(std::move(buf_),
                                 characters_.subspan(0, num_chars_));
   return StringsBuffer(std::move(offsets), std::move(characters));
+}
+
+size_t StringsBuffer::Builder::EstimateRequiredCharactersSize(
+    size_t size_to_add) {
+  size_t new_size =
+      std::max<size_t>(characters_.size() * 2, offsets_.size() * 16);
+  while (size_to_add + num_chars_ > new_size) {
+    new_size *= 2;
+  }
+  constexpr size_t kPageSize = 4 * 1024 * 1024;  // 4 MB
+  if (new_size < kPageSize) {
+    // We expect that for buffers >= kPageSize realloc just remaps virtual
+    // memory without copying data.
+    // For buffers < kPageSize we estimate final buffer size as
+    // `size_to_add * max_string_count`.
+    new_size =
+        std::clamp<size_t>(size_to_add * offsets_.size(), new_size, kPageSize);
+  }
+  return new_size;
 }
 
 void StringsBuffer::Builder::ResizeCharacters(size_t new_size) {

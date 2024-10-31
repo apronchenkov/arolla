@@ -38,10 +38,10 @@
 #include "google/protobuf/descriptor.h"
 #include "google/protobuf/message.h"
 #include "arolla/io/input_loader.h"
+#include "arolla/io/proto/reflection/reader.h"
+#include "arolla/io/proto_types/types.h"
 #include "arolla/memory/frame.h"
 #include "arolla/memory/raw_buffer_factory.h"
-#include "arolla/proto/reflection/reader.h"
-#include "arolla/proto/types.h"
 #include "arolla/qtype/qtype.h"
 #include "arolla/util/status_macros_backport.h"
 
@@ -188,7 +188,7 @@ absl::StatusOr<std::unique_ptr<proto::ProtoTypeReader>> ParseProtopathToReader(
 ProtoFieldsLoader::ProtoFieldsLoader(ProtoFieldsLoader::PrivateConstructorTag,
                                      const google::protobuf::Descriptor* descr,
                                      proto::StringFieldType string_type)
-    : descr_(descr), string_type_(std::move(string_type)) {}
+    : descr_(descr), string_type_(string_type) {}
 
 absl::StatusOr<std::unique_ptr<InputLoader<google::protobuf::Message>>>
 ProtoFieldsLoader::Create(const google::protobuf::Descriptor* descr,

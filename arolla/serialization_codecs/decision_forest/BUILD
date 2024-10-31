@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_python//python:proto.bzl", "py_proto_library")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
@@ -27,6 +29,12 @@ cc_proto_library(
     deps = [":decision_forest_codec_proto"],
 )
 
+py_proto_library(
+    name = "decision_forest_codec_py_proto",
+    testonly = True,
+    deps = [":decision_forest_codec_proto"],
+)
+
 cc_test(
     name = "decision_forest_codec_test",
     srcs = ["decision_forest_codec_test.cc"],
@@ -38,7 +46,6 @@ cc_test(
         "//arolla/serialization",
         "//arolla/serialization_base:base_cc_proto",
         "//arolla/serialization_codecs:all",
-        "//arolla/util",
         "//arolla/util/testing",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",

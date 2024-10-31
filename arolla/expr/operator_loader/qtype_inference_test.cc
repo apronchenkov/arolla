@@ -23,10 +23,10 @@
 #include "absl/status/statusor.h"
 #include "arolla/expr/expr.h"
 #include "arolla/qtype/base_types.h"
+#include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/shape_qtype.h"
 #include "arolla/util/bytes.h"
-#include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::operator_loader {
@@ -42,8 +42,6 @@ using ::testing::HasSubstr;
 
 class QTypeInferenceTest : public ::testing::Test {
  protected:
-  void SetUp() override { InitArolla(); }
-
   static absl::StatusOr<QTypeInferenceFn> SampleInferenceFn() {
     ASSIGN_OR_RETURN(auto x_is_scalar_qtype_expr,
                      CallOp("qtype.is_scalar_qtype", {Placeholder("x")}));
@@ -68,6 +66,16 @@ TEST_F(QTypeInferenceTest, Ok) {
                   {"y", GetQType<int32_t>()},
               }),
               IsOkAndHolds(GetQType<int64_t>()));
+  EXPECT_THAT(fn({
+                  {"y", GetQType<int32_t>()},
+              }),
+              IsOkAndHolds(nullptr));
+  EXPECT_THAT(fn({
+                  {"x", GetQType<int64_t>()},
+                  {"y", GetNothingQType()},
+              }),
+              IsOkAndHolds(nullptr));
+  EXPECT_THAT(fn({}), IsOkAndHolds(nullptr));
 }
 
 TEST_F(QTypeInferenceTest, ErrorMessage) {

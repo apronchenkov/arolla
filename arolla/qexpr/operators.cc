@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/no_destructor.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -39,7 +40,6 @@
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/typed_slot.h"
 #include "arolla/qtype/typed_value.h"
-#include "arolla/util/indestructible.h"
 #include "arolla/util/operator_name.h"
 #include "arolla/util/status_macros_backport.h"
 
@@ -135,23 +135,24 @@ absl::Status OperatorRegistry::RegisterOperatorFamily(
   return absl::OkStatus();
 }
 
-absl::Status OperatorRegistry::RegisterOperator(OperatorPtr op,
+absl::Status OperatorRegistry::RegisterOperator(absl::string_view name,
+                                                OperatorPtr op,
                                                 size_t overwrite_priority) {
-  if (!IsOperatorName(op->name())) {
+  if (!IsOperatorName(name)) {
     return absl::InvalidArgumentError(
-        absl::StrFormat("incorrect operator name \"%s\"", op->name()));
+        absl::StrFormat("incorrect operator name \"%s\"", name));
   }
   absl::WriterMutexLock lock(&mutex_);
-  auto& family = families_[op->name()];
+  auto& family = families_[name];
   if (family == nullptr) {
-    family = std::make_unique<CombinedOperatorFamily>(std::string(op->name()));
+    family = std::make_unique<CombinedOperatorFamily>(std::string(name));
   }
   auto* combined_family = dynamic_cast<CombinedOperatorFamily*>(family.get());
   if (combined_family == nullptr) {
     return absl::AlreadyExistsError(
         absl::StrFormat("trying to register a single QExpr operator and an "
                         "operator family under the same name %s",
-                        op->name()));
+                        name));
   }
   return combined_family->Insert(std::move(op), overwrite_priority);
 }
@@ -188,8 +189,7 @@ absl::StatusOr<OperatorPtr> OperatorRegistry::DoLookupOperator(
 }
 
 OperatorRegistry* OperatorRegistry::GetInstance() {
-  static Indestructible<OperatorRegistry> instance(
-      [](auto* self) { new (self) OperatorRegistry; });
+  static absl::NoDestructor<OperatorRegistry> instance;
   return instance.get();
 }
 
@@ -220,9 +220,8 @@ absl::Status VerifyOperatorSlots(const QExprOperator& op,
                                  absl::Span<const TypedSlot> input_slots,
                                  TypedSlot output_slot) {
   auto signature = op.signature();
-  RETURN_IF_ERROR(
-      VerifyInputSlotTypes(input_slots, signature->input_types(), op.name()));
-  return VerifyOutputSlotType(output_slot, signature->output_type(), op.name());
+  RETURN_IF_ERROR(VerifyInputSlotTypes(input_slots, signature->input_types()));
+  return VerifyOutputSlotType(output_slot, signature->output_type());
 }
 
 }  // namespace
@@ -234,18 +233,17 @@ absl::StatusOr<OperatorPtr> EnsureOutputQTypeMatches(
   if (op->signature()->output_type() != output_type) {
     return absl::Status(
         absl::StatusCode::kNotFound,
-        absl::StrFormat(
-            "operator %s%s->%s not found: unexpected output type %s",
-            op->name(), FormatTypeVector(input_types), output_type->name(),
-            op->signature()->output_type()->name()));
+        absl::StrFormat("unexpected output type for arguments %s: requested "
+                        "%s, available %s",
+                        FormatTypeVector(input_types), output_type->name(),
+                        op->signature()->output_type()->name()));
   }
   return op;
 }
 
 absl::StatusOr<TypedValue> InvokeOperator(const QExprOperator& op,
                                           absl::Span<const TypedValue> args) {
-  RETURN_IF_ERROR(
-      VerifyInputValueTypes(args, op.signature()->input_types(), op.name()));
+  RETURN_IF_ERROR(VerifyInputValueTypes(args, op.signature()->input_types()));
   ASSIGN_OR_RETURN(auto bound, BindToNewLayout(op));
   RootEvaluationContext root_ctx(&bound.layout);
 

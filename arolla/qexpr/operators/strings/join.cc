@@ -15,7 +15,6 @@
 #include "arolla/qexpr/operators/strings/join.h"
 
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
@@ -82,7 +81,7 @@ template <class StringType>
 class JoinOperator : public QExprOperator {
  public:
   explicit JoinOperator(const QExprOperatorSignature* type)
-      : QExprOperator(std::string(kJoinOperatorName), type) {}
+      : QExprOperator(type) {}
 
  private:
   absl::StatusOr<std::unique_ptr<BoundOperator>> DoBind(

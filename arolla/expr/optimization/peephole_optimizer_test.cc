@@ -35,7 +35,6 @@
 #include "arolla/expr/testing/testing.h"
 #include "arolla/expr/visitors/substitution.h"
 #include "arolla/memory/optional_value.h"
-#include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::expr {
@@ -48,11 +47,7 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::Ne;
 
-class Optimization : public ::testing::Test {
-  void SetUp() override { InitArolla(); }
-};
-
-TEST_F(Optimization, Errors) {
+TEST(Optimization, Errors) {
   ExprNodePtr leaf = Leaf("x");
   ExprNodePtr px = Placeholder("x");
   ASSERT_OK_AND_ASSIGN(ExprNodePtr opx, CallOp("math.add", {px, px}));
@@ -96,7 +91,7 @@ absl::StatusOr<std::unique_ptr<PeepholeOptimization>> Pair2FirstOptimization() {
   return PeepholeOptimization::CreatePatternOptimization(from, to);
 }
 
-TEST_F(Optimization, NoOptimizations) {
+TEST(Optimization, NoOptimizations) {
   ASSERT_OK_AND_ASSIGN(auto optimization, Plus2MinusOptimization());
   {
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expr,
@@ -134,7 +129,7 @@ TEST_F(Optimization, NoOptimizations) {
   }
 }
 
-TEST_F(Optimization, Key) {
+TEST(Optimization, Key) {
   ASSERT_OK_AND_ASSIGN(auto optimization, Plus2MinusOptimization());
   ASSERT_OK_AND_ASSIGN(ExprNodePtr plus,
                        CallOp("math.add", {Leaf("x"), Leaf("y")}));
@@ -162,7 +157,7 @@ TEST_F(Optimization, Key) {
   }));
 }
 
-TEST_F(Optimization, SimpleOptimizations) {
+TEST(Optimization, SimpleOptimizations) {
   ASSERT_OK_AND_ASSIGN(auto optimization, Plus2MinusOptimization());
   {
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expr,
@@ -200,14 +195,13 @@ TEST_F(Optimization, SimpleOptimizations) {
   }
 }
 
-TEST_F(Optimization, BackendWrapperOperatorOptimizations) {
+TEST(Optimization, BackendWrapperOperatorOptimizations) {
   ASSERT_OK_AND_ASSIGN(auto optimization, Plus2MinusOptimization());
   {
     ASSERT_OK_AND_ASSIGN(
         auto add_backend,
         DecayRegisteredOperator(LookupOperator("math.add").value()));
-    ASSERT_TRUE(dynamic_cast<const BackendExprOperatorTag*>(
-                    add_backend.get()) != nullptr);
+    ASSERT_TRUE(HasBackendExprOperatorTag(add_backend));
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expr,
                          CallOp(add_backend, {Leaf("x"), Leaf("y")}));
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expected_expr,
@@ -238,7 +232,7 @@ absl::StatusOr<std::unique_ptr<PeepholeOptimization>> HasLiteralOptimization() {
                                                          {{"b", kIsLiteral}});
 }
 
-TEST_F(Optimization, RestrictedOptimizations) {
+TEST(Optimization, RestrictedOptimizations) {
   ASSERT_OK_AND_ASSIGN(auto optimization, HasLiteralOptimization());
   OptionalValue<float> opt1 = 1.0f;
   {
@@ -271,18 +265,18 @@ absl::StatusOr<std::unique_ptr<PeepholeOptimization>>
 SquareA2AxAOptimization() {
   ASSIGN_OR_RETURN(
       ExprNodePtr square_a,
-      CallOpReference("math._pow", {Placeholder("a"), Literal(2.f)}));
+      CallOpReference("math.pow", {Placeholder("a"), Literal(2.f)}));
   ASSIGN_OR_RETURN(
       ExprNodePtr axa,
       CallOpReference("math.multiply", {Placeholder("a"), Placeholder("a")}));
   return PeepholeOptimization::CreatePatternOptimization(square_a, axa);
 }
 
-TEST_F(Optimization, LiteralOptimizations) {
+TEST(Optimization, LiteralOptimizations) {
   ASSERT_OK_AND_ASSIGN(auto optimization, SquareA2AxAOptimization());
   {
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expr,
-                         CallOp("math._pow", {Leaf("x"), Literal(2.f)}));
+                         CallOp("math.pow", {Leaf("x"), Literal(2.f)}));
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expected_expr,
                          CallOp("math.multiply", {Leaf("x"), Leaf("x")}));
     EXPECT_THAT(optimization->ApplyToRoot(expr),
@@ -290,13 +284,13 @@ TEST_F(Optimization, LiteralOptimizations) {
   }
   {  // no optimization on literal mismatch
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expr,
-                         CallOp("math._pow", {Leaf("x"), Literal(3.f)}));
+                         CallOp("math.pow", {Leaf("x"), Literal(3.f)}));
     EXPECT_THAT(optimization->ApplyToRoot(expr),
                 IsOkAndHolds(EqualsExpr(expr)));
   }
   {  // literal includes type information
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expr,
-                         CallOp("math._pow", {Leaf("x"), Literal(2.)}));
+                         CallOp("math.pow", {Leaf("x"), Literal(2.)}));
     EXPECT_THAT(optimization->ApplyToRoot(expr),
                 IsOkAndHolds(EqualsExpr(expr)));
   }
@@ -321,7 +315,7 @@ absl::StatusOr<std::unique_ptr<PeepholeOptimization>> ApBxAmBOptimization() {
   return PeepholeOptimization::CreatePatternOptimization(from, to);
 }
 
-TEST_F(Optimization, SamePartsInOptimization) {
+TEST(Optimization, SamePartsInOptimization) {
   ASSERT_OK_AND_ASSIGN(auto optimization, ApBxAmBOptimization());
   {
     ASSERT_OK_AND_ASSIGN(
@@ -369,11 +363,11 @@ absl::StatusOr<std::unique_ptr<PeepholeOptimization>> ApBPowerNOptimization(
     ASSIGN_OR_RETURN(from, CallOpReference("math.multiply", {from, apb}));
   }
   ASSIGN_OR_RETURN(ExprNodePtr to,
-                   CallOpReference("math._pow", {apb, Literal<int64_t>(n)}));
+                   CallOpReference("math.pow", {apb, Literal<int64_t>(n)}));
   return PeepholeOptimization::CreatePatternOptimization(from, to);
 }
 
-TEST_F(Optimization, ManySimilarNodes) {
+TEST(Optimization, ManySimilarNodes) {
   constexpr int64_t n = 25;
   ASSERT_OK_AND_ASSIGN(auto optimization, ApBPowerNOptimization(n));
   {
@@ -384,7 +378,7 @@ TEST_F(Optimization, ManySimilarNodes) {
       ASSERT_OK_AND_ASSIGN(expr, CallOp("math.multiply", {expr, xpy}));
     }
     ASSERT_OK_AND_ASSIGN(ExprNodePtr expected_expr,
-                         CallOp("math._pow", {xpy, Literal<int64_t>(n)}));
+                         CallOp("math.pow", {xpy, Literal<int64_t>(n)}));
     EXPECT_THAT(optimization->ApplyToRoot(expr),
                 IsOkAndHolds(EqualsExpr(expected_expr)));
   }
@@ -416,7 +410,7 @@ absl::StatusOr<ExprNodePtr> BigRandomExpr(int64_t placeholder_count,
   }
   absl::BitGen gen;
   auto binary_op = [&]() -> std::string {
-    std::vector<std::string> names = {"math.add", "math.multiply", "math._pow"};
+    std::vector<std::string> names = {"math.add", "math.multiply", "math.pow"};
     return names[absl::Uniform(gen, 0u, names.size())];
   };
   for (int64_t i = 0; i != op_count; ++i) {
@@ -440,7 +434,7 @@ absl::StatusOr<ExprNodePtr> BigRandomExpr(int64_t placeholder_count,
 }
 
 // Test on big expressions
-TEST_F(Optimization, StressTest) {
+TEST(Optimization, StressTest) {
   for (int64_t placeholder_count = 1; placeholder_count <= 64;
        placeholder_count *= 4) {
     for (int64_t op_count = 1; op_count <= 256; op_count *= 4) {
@@ -466,14 +460,14 @@ TEST_F(Optimization, StressTest) {
   }
 }
 
-TEST_F(Optimization, TwoOptimizations) {
+TEST(Optimization, TwoOptimizations) {
   std::vector<std::unique_ptr<PeepholeOptimization>> optimizations;
   ASSERT_OK_AND_ASSIGN(auto a2_opt, SquareA2AxAOptimization());
   optimizations.push_back(std::move(a2_opt));
   ASSERT_OK_AND_ASSIGN(auto a3_opt, ApBPowerNOptimization(3));
   optimizations.push_back(std::move(a3_opt));
   ASSERT_OK_AND_ASSIGN(ExprNodePtr square,  // x ** 2
-                       CallOp("math._pow", {Leaf("x"), Literal(2.f)}));
+                       CallOp("math.pow", {Leaf("x"), Literal(2.f)}));
   ASSERT_OK_AND_ASSIGN(ExprNodePtr square2,  // x ** 2 + x ** 2
                        CallOp("math.add", {square, square}));
   ASSERT_OK_AND_ASSIGN(
@@ -485,7 +479,7 @@ TEST_F(Optimization, TwoOptimizations) {
                        CallOp("math.multiply", {Leaf("x"), Leaf("x")}));
   ASSERT_OK_AND_ASSIGN(
       ExprNodePtr expected_cubic_square2_optimized,  // (x * x + x * x) ** 3
-      CallOp("math._pow", {CallOp("math.add", {x2, x2}), Literal(int64_t{3})}));
+      CallOp("math.pow", {CallOp("math.add", {x2, x2}), Literal(int64_t{3})}));
   ASSERT_OK_AND_ASSIGN(auto optimizer,
                        PeepholeOptimizer::Create(std::move(optimizations)));
   // Both optimizations applied.
@@ -512,7 +506,7 @@ RemoveArithmeticOptimization() {
       });
 }
 
-TEST_F(Optimization, TransformOptimization) {
+TEST(Optimization, TransformOptimization) {
   std::vector<std::unique_ptr<PeepholeOptimization>> optimizations;
   ASSERT_OK_AND_ASSIGN(auto opt, RemoveArithmeticOptimization());
   optimizations.push_back(std::move(opt));

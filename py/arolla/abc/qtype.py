@@ -17,7 +17,9 @@
 This module provides no concrete QTypes or QValue specializations.
 """
 
-from typing import Any, Self
+from __future__ import annotations
+
+from typing import Any
 
 from arolla.abc import clib
 
@@ -56,7 +58,7 @@ Fingerprint = clib.Fingerprint
 #     __reduce__(self, /)
 #       Implements pickle-friendly serialization.
 #
-#       WARNING: no persistence guarantee, for long-term storage use rl.s11n
+#       WARNING: no persistence guarantee, for long-term storage use arolla.s11n
 #       instead.
 #
 #   Data descriptors defined here:
@@ -164,7 +166,7 @@ class Unspecified(QValue):
 
   __slots__ = ()
 
-  def __new__(cls) -> Self:
+  def __new__(cls) -> Unspecified:
     return unspecified()
 
   def __eq__(self, other) -> bool:

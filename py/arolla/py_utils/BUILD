@@ -35,6 +35,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":py_object_ptr_impl",
+        ":status_payload_handler_registry",
+        "//arolla/util",
+        "//arolla/util:status_backport",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/random",
@@ -44,6 +47,34 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:cord",
         "@rules_python//python/cc:current_py_cc_headers",  # buildcleaner: keep
+    ],
+)
+
+cc_library(
+    name = "status_payload_handler_registry",
+    srcs = ["status_payload_handler_registry.cc"],
+    hdrs = ["status_payload_handler_registry.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:no_destructor",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:cord",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+cc_test(
+    name = "status_payload_handler_registry_test",
+    srcs = ["status_payload_handler_registry_test.cc"],
+    deps = [
+        ":status_payload_handler_registry",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/strings:cord",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -72,6 +103,7 @@ pybind_extension(
     srcs = ["testing_clib.cc"],
     deps = [
         ":py_utils",
+        "//arolla/util",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:cord",
         "@com_google_absl//absl/strings:string_view",

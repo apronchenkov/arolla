@@ -49,45 +49,6 @@ http_archive(
 load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
 boost_deps()
 
-http_archive(
-    name = "jinja_archive",
-    build_file_content = """py_library(
-        name = "jinja2",
-        visibility = ["//visibility:public"],
-        srcs = glob(["jinja2/*.py"]),
-        deps = ["@markupsafe//:markupsafe"],
-    )""",
-    sha256 = "93187ffbc7808079673ef52771baa950426fd664d3aad1d0fa3e95644360e250",
-    strip_prefix = "Jinja2-2.11.1/src",
-    urls = [
-        "http://mirror.bazel.build/files.pythonhosted.org/packages/d8/03/e491f423379ea14bb3a02a5238507f7d446de639b623187bccc111fbecdf/Jinja2-2.11.1.tar.gz",
-        "https://files.pythonhosted.org/packages/d8/03/e491f423379ea14bb3a02a5238507f7d446de639b623187bccc111fbecdf/Jinja2-2.11.1.tar.gz",  # 2020-01-30
-    ],
-)
-
-# Jinja2 depends on MarkupSafe
-http_archive(
-    name = "markupsafe",
-    build_file_content = """py_library(
-        name = "markupsafe",
-        visibility = ["//visibility:public"],
-        srcs = glob(["*.py"])
-    )""",
-    sha256 = "29872e92839765e546828bb7754a68c418d927cd064fd4708fab9fe9c8bb116b",
-    strip_prefix = "MarkupSafe-1.1.1/src/markupsafe",
-    urls = [
-        "http://mirror.bazel.build/files.pythonhosted.org/packages/b9/2e/64db92e53b86efccfaea71321f597fa2e1b2bd3853d8ce658568f7a13094/MarkupSafe-1.1.1.tar.gz",
-        "https://files.pythonhosted.org/packages/b9/2e/64db92e53b86efccfaea71321f597fa2e1b2bd3853d8ce658568f7a13094/MarkupSafe-1.1.1.tar.gz",  # 2019-02-24
-    ],
-)
-
-new_git_repository(
-  name = "pypa_typing_extensions",
-  tag = "4.8.0",
-  remote = "https://github.com/python/typing_extensions",
-  build_file = "BUILD.pypa_typing_extensions",
-)
-
 # ICU (International Components for Unicode)
 new_git_repository(
   name = "icu4c",

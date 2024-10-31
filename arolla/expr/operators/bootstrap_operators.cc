@@ -343,7 +343,7 @@ class BroadcastQTypeLikeOp final : public BackendExprOperatorTag,
     const auto& x = inputs[1];
     if (target.qtype() != nullptr && target.qtype() != GetQTypeQType()) {
       return absl::InvalidArgumentError(absl::StrFormat(
-          "expected a qtype, got target: %s", x.qtype()->name()));
+          "expected a qtype, got target: %s", target.qtype()->name()));
     }
     if (x.qtype() != nullptr && x.qtype() != GetQTypeQType()) {
       return absl::InvalidArgumentError(
@@ -555,8 +555,8 @@ class SeqZipOp final : public BackendExprOperatorTag,
             "the same size.\n"
             "\n"
             "Example:\n"
-            ">>> seq.zip(rl.types.Sequence(1, 2, 3), rl.types.Sequence('a', "
-            "'b', 'c'))"
+            ">>> seq.zip(arolla.types.Sequence(1, 2, 3),"
+            " arolla.types.Sequence('a', 'b', 'c'))"
             "\n"
             "Sequence(Tuple(1, 'a'), Tuple(2, 'b'), Tuple(3, 'c'))",
             FingerprintHasher("::arolla::expr_operators::SeqZipOp").Finish()) {}
@@ -711,9 +711,11 @@ AROLLA_INITIALIZER(
               RegisterOperator<ExportValueAnnotation>("annotation.export_value")
                   .status());
           RETURN_IF_ERROR(
-              RegisterOperator<NameAnnotation>("annotation.name").status());
+              RegisterOperator("annotation.name", NameAnnotation::Make())
+                  .status());
           RETURN_IF_ERROR(
-              RegisterOperator<QTypeAnnotation>("annotation.qtype").status());
+              RegisterOperator("annotation.qtype", QTypeAnnotation::Make())
+                  .status());
 
           RETURN_IF_ERROR(
               RegisterOperator("core.apply", MakeCoreApplyOp()).status());
@@ -734,6 +736,9 @@ AROLLA_INITIALIZER(
           RETURN_IF_ERROR(RegisterOperator("namedtuple.get_field",
                                            MakeNamedtupleGetFieldOp())
                               .status());
+          RETURN_IF_ERROR(
+              RegisterOperator("namedtuple.union", MakeNamedtupleUnionOp())
+                  .status());
 
           RETURN_IF_ERROR(
               RegisterOperator("core.coalesce_units", MakeCoreCoalesceUnitsOp())

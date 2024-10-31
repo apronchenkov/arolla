@@ -18,8 +18,10 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 
+#include "absl/base/no_destructor.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -30,6 +32,7 @@
 #include "py/arolla/abc/py_qvalue_specialization.h"
 #include "py/arolla/abc/py_signature.h"
 #include "py/arolla/py_utils/py_utils.h"
+#include "arolla/expr/annotation_utils.h"
 #include "arolla/expr/expr.h"
 #include "arolla/expr/expr_node.h"
 #include "arolla/expr/expr_operator.h"
@@ -39,7 +42,6 @@
 #include "arolla/qtype/tuple_qtype.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/qtype/unspecified_qtype.h"
-#include "arolla/util/indestructible.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::python {
@@ -50,9 +52,11 @@ using ::arolla::expr::ExprNodePtr;
 using ::arolla::expr::ExprOperatorPtr;
 using ::arolla::expr::ExprOperatorRegistry;
 using ::arolla::expr::HasAnnotationExprOperatorTag;
+using ::arolla::expr::IsNameAnnotation;
 using ::arolla::expr::Leaf;
 using ::arolla::expr::Literal;
 using ::arolla::expr::Placeholder;
+using ::arolla::expr::ReadNameAnnotation;
 using ::arolla::expr::RegisteredOperator;
 using ::arolla::expr::ToLowerNode;
 using ::arolla::expr::ToLowest;
@@ -186,13 +190,26 @@ PyObject* PyPlaceholder(PyObject* /*self*/, PyObject* py_arg) {
                       Py_TYPE(py_arg)->tp_name);
 }
 
+// def read_name_annotation(node: Expr, /) -> str|None
+PyObject* PyReadNameAnnotation(PyObject* /*self*/, PyObject* py_arg) {
+  const auto& node = UnwrapPyExpr(py_arg);
+  if (node == nullptr) {
+    return nullptr;
+  }
+  if (!IsNameAnnotation(node)) {
+    Py_RETURN_NONE;
+  }
+  const auto& name = ReadNameAnnotation(node);
+  return PyUnicode_FromStringAndSize(name.data(), name.size());
+}
+
 // def to_lower_node(node: Expr, /) -> Expr
 PyObject* PyToLowerNode(PyObject* /*self*/, PyObject* py_arg) {
   auto expr = UnwrapPyExpr(py_arg);
   if (expr == nullptr) {
     return nullptr;
   }
-  ASSIGN_OR_RETURN(auto result, ToLowerNode(std::move(expr)),
+  ASSIGN_OR_RETURN(auto result, ToLowerNode(expr),
                    (SetPyErrFromStatus(_), nullptr));
   return WrapAsPyExpr(std::move(result));
 }
@@ -203,7 +220,7 @@ PyObject* PyToLowest(PyObject* /*self*/, PyObject* py_arg) {
   if (expr == nullptr) {
     return nullptr;
   }
-  ASSIGN_OR_RETURN(auto result, ToLowest(std::move(expr)),
+  ASSIGN_OR_RETURN(auto result, ToLowest(expr),
                    (SetPyErrFromStatus(_), nullptr));
   return WrapAsPyExpr(std::move(result));
 }
@@ -227,19 +244,50 @@ PyObject* PyUnspecified(PyObject* /*self*/, PyObject* /*py_args*/) {
   return WrapAsPyQValue(GetUnspecifiedQValue());
 }
 
+// def vectorcall(
+//     fn: Callable[..., Any], args: Any..., kw_names: tuple[str, ...], /
+// ) -> Any
+PyObject* PyVectorcall(PyObject* /*self*/, PyObject* const* args,
+                       Py_ssize_t nargs) {
+  if (nargs < 2) {
+    return PyErr_Format(PyExc_TypeError,
+                        "expected at least two positional arguments, got %zd",
+                        nargs);
+  }
+  PyObject* py_callable = args[0];
+  PyObject* py_tuple_kwnames = args[nargs - 1];
+  if (!PyTuple_CheckExact(py_tuple_kwnames)) {
+    return PyErr_Format(
+        PyExc_TypeError,
+        "expected the last argument to be tuple[str, ...], got %s",
+        Py_TYPE(py_tuple_kwnames)->tp_name);
+  }
+  Py_ssize_t py_tuple_kwnames_size = PyTuple_GET_SIZE(py_tuple_kwnames);
+  if (py_tuple_kwnames_size > nargs - 2) {
+    return PyErr_Format(PyExc_TypeError,
+                        "too few positional arguments (=%zd) for the given "
+                        "number of keyword names (=%zd)",
+                        nargs, py_tuple_kwnames_size);
+  }
+  return _PyObject_Vectorcall(
+      py_callable, args + 1,
+      (nargs - 2 - py_tuple_kwnames_size) | PY_VECTORCALL_ARGUMENTS_OFFSET,
+      py_tuple_kwnames);
+}
+
 // def deep_transform(expr: Expr, transform_fn: Callable[[Expr], Expr]) -> Expr
 // def transform(expr: Expr, transform_fn: Callable[[Expr], Expr]) -> Expr
 namespace py_transform {
 
 struct DeepTransformTraits {
-  static constexpr const char* kFnName = "rl.abc.deep_transform";
+  static constexpr const char* kFnName = "arolla.abc.deep_transform";
   static auto transform(const ExprNodePtr& expr, auto transform_fn) {
     return ::arolla::expr::DeepTransform(expr, std::move(transform_fn));
   }
 };
 
 struct TransformTraits {
-  static constexpr const char* kFnName = "rl.abc.transform";
+  static constexpr const char* kFnName = "arolla.abc.transform";
   static auto transform(const ExprNodePtr& expr, auto transform_fn) {
     return ::arolla::expr::Transform(expr, std::move(transform_fn));
   }
@@ -249,8 +297,8 @@ template <typename Traits>
 PyObject* Impl(PyObject* /*self*/, PyObject* py_args, PyObject* py_kwargs) {
   PyObject* py_expr = nullptr;
   PyObject* py_transform_fn = nullptr;
-  static const Indestructible<std::string> format(std::string("OO:") +
-                                                  Traits::kFnName);
+  static const absl::NoDestructor<std::string> format(std::string("OO:") +
+                                                      Traits::kFnName);
   static constexpr const char* keywords[] = {"expr", "transform_fn", nullptr};
   if (!PyArg_ParseTupleAndKeywords(py_args, py_kwargs, format->c_str(),
                                    const_cast<char**>(keywords), &py_expr,
@@ -439,6 +487,15 @@ const PyMethodDef kDefPyPlaceholder = {
      "Returns a placeholder node with the given key."),
 };
 
+const PyMethodDef kDefPyReadNameAnnotation = {
+    "read_name_annotation",
+    &PyReadNameAnnotation,
+    METH_O,
+    ("read_name_annotation(node, /)\n"
+     "--\n\n"
+     "Returns the name tag if the node is a name annotation; otherwise, None."),
+};
+
 const PyMethodDef kDefPyToLowerNode = {
     "to_lower_node",
     &PyToLowerNode,
@@ -501,6 +558,20 @@ const PyMethodDef kDefPyUnspecified = {
      "The main purpose of `unspecified` is to serve as a default value\n"
      "for a parameter in situations where the actual default value must\n"
      "be determined based on other parameters."),
+};
+
+const PyMethodDef kDefPyVectorcall = {
+    "vectorcall",
+    reinterpret_cast<PyCFunction>(&PyVectorcall),
+    METH_FASTCALL,
+    ("vectorcall(fn, /, *args)\n"
+     "--\n\n"
+     "vectorcall(fn: Callable, args: Any..., kw_names: tuple[str, ...]\n\n"
+     "This is a proxy for PyObject_Vectorcall() in the Python C API. It "
+     "provides\nan alternative for representing calls like:\n\n"
+     "  fn(*args[:n], **dict(zip(kw_names, args [n:])))\n\n"
+     "as\n\n  vectorcall(fn, *args, kw_names)\n\n"
+     "which may be more efficient in certain situations."),
 };
 
 // go/keep-sorted end

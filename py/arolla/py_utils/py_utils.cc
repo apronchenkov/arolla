@@ -18,32 +18,26 @@
 
 #include <cstdarg>
 #include <cstddef>
+#include <optional>
 #include <ostream>
 #include <sstream>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "py/arolla/py_utils/py_object_as_status_payload.h"
+#include "py/arolla/py_utils/status_payload_handler_registry.h"
+#include "arolla/util/init_arolla.h"
+#include "arolla/util/status_macros_backport.h"
 
 namespace arolla::python {
-
-std::nullptr_t SetPyErrFromStatus(const absl::Status& status) {
-  DCheckPyGIL();
-  DCHECK(!status.ok());
-
-  // If Status represents a Python exception, raise it here.
-  auto py_object_ptr = ReadPyObjectFromStatusPayload(status, kPyException)
-                           .value_or(PyObjectGILSafePtr());
-  if (py_object_ptr != nullptr) {
-    PyObject* py_exception = py_object_ptr.get();
-    PyErr_SetObject((PyObject*)Py_TYPE(py_exception), py_exception);
-    return nullptr;
-  }
-
-  // Otherwise, convert Status to ValueError and raise.
+namespace {
+std::string StatusToString(const absl::Status& status) {
   std::ostringstream message;
 
   // Include the status code, unless it's StatusCode::kInvalidArgument.
@@ -58,19 +52,72 @@ std::nullptr_t SetPyErrFromStatus(const absl::Status& status) {
     message << status_message;
   }
 
-  PyErr_SetString(PyExc_ValueError, std::move(message).str().c_str());
+  return message.str();
+}
 
-  // If Status has a Python exception as a cause, attach it here.
-  py_object_ptr = ReadPyObjectFromStatusPayload(status, kPyExceptionCause)
-                      .value_or(PyObjectGILSafePtr());
-  if (py_object_ptr != nullptr) {
-    PyObjectPtr ptype, pvalue, ptraceback;
-    PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-    PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
-    DCHECK(pvalue != nullptr);
-    PyException_SetCause(pvalue.get(), py_object_ptr.release());
-    PyErr_Restore(ptype.release(), pvalue.release(), ptraceback.release());
+// If payload contains a Python exception, raise it here. Otherwise, convert
+// Status to ValueError and raise.
+void HandlePythonExceptionPayload(absl::Cord payload,
+                                  const absl::Status& status) {
+  auto py_object_ptr =
+      UnwrapPyObjectFromCord(std::move(payload)).value_or(PyObjectGILSafePtr());
+  if (py_object_ptr == nullptr) {
+    DefaultSetPyErrFromStatus(status);
+    return;
   }
+  PyObject* py_exception = py_object_ptr.get();
+  PyErr_SetObject((PyObject*)Py_TYPE(py_exception), py_exception);
+}
+
+// If payload contains a Python exception cause, first turn the Status into
+// ValueError and then attach the cause.
+void HandlePythonExceptionCausePayload(absl::Cord payload,
+                                       const absl::Status& status) {
+  auto py_object_ptr =
+      UnwrapPyObjectFromCord(std::move(payload)).value_or(PyObjectGILSafePtr());
+  if (py_object_ptr == nullptr) {
+    DefaultSetPyErrFromStatus(status);
+    return;
+  }
+  std::string message = StatusToString(status);
+  PyErr_SetString(PyExc_ValueError, std::move(message).c_str());
+
+  PyObjectPtr ptype, pvalue, ptraceback;
+  PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+  PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
+  DCHECK(pvalue != nullptr);
+  PyException_SetCause(pvalue.get(), py_object_ptr.release());
+  PyErr_Restore(ptype.release(), pvalue.release(), ptraceback.release());
+}
+}  // namespace
+
+void DefaultSetPyErrFromStatus(const absl::Status& status) {
+  std::string message = StatusToString(status);
+
+  PyErr_SetString(PyExc_ValueError, std::move(message).c_str());
+}
+
+std::nullptr_t SetPyErrFromStatus(const absl::Status& status) {
+  DCheckPyGIL();
+  DCHECK(!status.ok());
+
+  std::vector<std::string> type_urls;
+  status.ForEachPayload(
+      [&type_urls](absl::string_view type_url, const absl::Cord& payload) {
+        type_urls.push_back(std::string(type_url));
+      });
+
+  if (type_urls.size() == 1) {
+    StatusPayloadHandler handler = GetStatusHandlerOrNull(type_urls.front());
+    if (handler != nullptr) {
+      std::optional<absl::Cord> payload = status.GetPayload(type_urls.front());
+      handler(*std::move(payload), status);
+      return nullptr;
+    }
+  }
+
+  // Otherwise, convert Status to ValueError and raise.
+  DefaultSetPyErrFromStatus(status);
   return nullptr;
 }
 
@@ -215,6 +262,14 @@ PyObject* PyErr_FormatFromCause(PyObject* py_exc, const char* format, ...) {
   }
   return nullptr;
 }
+
+AROLLA_INITIALIZER(.init_fn = []() -> absl::Status {
+  RETURN_IF_ERROR(RegisterStatusHandler(kPyExceptionCause,
+                                        HandlePythonExceptionCausePayload));
+  RETURN_IF_ERROR(
+      RegisterStatusHandler(kPyException, HandlePythonExceptionPayload));
+  return absl::OkStatus();
+})
 
 extern "C" int arolla_python_unsafe_internal_PyErr_CanCallCheckSignal(void);
 

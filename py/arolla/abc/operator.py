@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, Self
+from typing import Any
 
 from arolla.abc import aux_binding_policy as abc_aux_binding_policy
 from arolla.abc import clib
@@ -33,7 +33,7 @@ _aux_eval_op = clib.aux_eval_op
 
 
 class _OperatorAuxBindOp:
-  """Proxy for rl.abc.aux_bind_op() that exports doc-string and signature."""
+  """Proxy for aux_bind_op() exposing the operator's signature and docstring."""
 
   __slots__ = ('_op',)
 
@@ -72,7 +72,7 @@ class _OperatorAuxBindOpDescriptor:
 
 
 class _OperatorAuxEvalOp:
-  """Proxy for rl.abc.aux_eval_op() that exports doc-string and signature."""
+  """Proxy for aux_eval_op() exposing operator's doc-string and signature."""
 
   __slots__ = ('_op',)
 
@@ -148,7 +148,7 @@ class RegisteredOperator(Operator):
 
   __slots__ = ()
 
-  def __new__(cls, name: str) -> Self:
+  def __new__(cls, name: str) -> RegisteredOperator:
     return abc_expr.lookup_operator(name)
 
 

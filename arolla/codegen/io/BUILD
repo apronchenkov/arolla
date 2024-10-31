@@ -15,6 +15,7 @@
 # bzl based functions for code generation.
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@pip_deps//:requirements.bzl", "requirement")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -108,11 +109,10 @@ py_library(
         "wildcard_input_loaders.h.jinja2",
     ],
     deps = [
+        requirement("jinja2"),
         "//arolla/codegen:utils",
         "//arolla/proto:io_py_pb2",
         "@com_google_protobuf//:protobuf_python",
-        "@jinja_archive//:jinja2",
-        "@pypa_typing_extensions//:typing_extensions",
     ],
 )
 
@@ -139,9 +139,9 @@ py_test(
     srcs = ["protopath_test.py"],
     deps = [
         ":io",
-        "//arolla/proto:test_extension_py_proto",
-        "//arolla/proto:test_proto3_py_proto",
-        "//arolla/proto:test_py_proto",
+        "//arolla/proto/testing:test_extension_py_proto",
+        "//arolla/proto/testing:test_proto3_py_proto",
+        "//arolla/proto/testing:test_py_proto",
         "@com_google_absl_py//absl/testing:absltest",
         "@com_google_absl_py//absl/testing:parameterized",
     ],
@@ -171,8 +171,8 @@ cc_library(
     local_defines = ["AROLLA_IMPLEMENTATION"],
     deps = [
         "//arolla/dense_array",
+        "//arolla/io/proto_types",
         "//arolla/memory",
-        "//arolla/proto",
         "//arolla/qtype",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/types:span",
@@ -197,7 +197,7 @@ cc_test(
         "//arolla/dense_array",
         "//arolla/dense_array/qtype",
         "//arolla/memory",
-        "//arolla/proto:test_cc_proto",
+        "//arolla/proto/testing:test_cc_proto",
         "//arolla/qtype",
         "@com_google_googletest//:gtest_main",
     ],

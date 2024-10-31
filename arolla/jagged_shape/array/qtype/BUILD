@@ -28,6 +28,7 @@ cc_library(
         "//arolla/jagged_shape/qtype",
         "//arolla/qtype",
         "//arolla/util",
+        "@com_google_absl//absl/base:no_destructor",
     ],
     alwayslink = 1,
 )
@@ -44,7 +45,6 @@ cc_test(
         "//arolla/jagged_shape/dense_array/qtype",
         "//arolla/jagged_shape/qtype",
         "//arolla/qtype",
-        "//arolla/util",
         "//arolla/util/testing",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",

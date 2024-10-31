@@ -23,21 +23,21 @@ from arolla.codegen.io import array_generator
 from arolla.codegen.io import cpp
 from arolla.codegen.io import protopath
 from arolla.codegen.io import table
-from arolla.proto import test_extension_pb2
-from arolla.proto import test_pb2
-from arolla.proto import test_proto3_pb2
+from arolla.proto.testing import test_extension_pb2
+from arolla.proto.testing import test_pb2
+from arolla.proto.testing import test_proto3_pb2
 
 OPTIONAL_INCLUDES = frozenset({
     cpp.Include('arolla/util/map.h'),
-    cpp.Include('arolla/proto/types.h'),
+    cpp.Include('arolla/io/proto_types/types.h'),
 })
 
 DENSE_ARRAY_INCLUDES = frozenset({
     cpp.Include('arolla/util/map.h'),
     cpp.Include('arolla/dense_array/dense_array.h'),
     cpp.Include('arolla/dense_array/qtype/types.h'),
-    cpp.Include('arolla/proto/types.h'),
-    cpp.Include('arolla/qtype/qtype.h')
+    cpp.Include('arolla/io/proto_types/types.h'),
+    cpp.Include('arolla/qtype/qtype.h'),
 })
 
 
@@ -1598,13 +1598,21 @@ for (auto& x_key : ::arolla::SortedMapKeys(inp.abc())) {
   def test_import_proto_class(self):
     self.assertEqual(
         protopath.import_proto_class(
-            'arolla.proto.test_pb2.Root'), test_pb2.Root)
+            'arolla.proto.testing.test_pb2.Root'
+        ),
+        test_pb2.Root,
+    )
     self.assertEqual(
         protopath.import_proto_class(
-            'arolla.proto.test_pb2.Inner.Inner2'),
-        test_pb2.Inner.Inner2)
-    self.assertRaises(ValueError, protopath.import_proto_class,
-                      'arolla.proto.test_pb2.NotFound')
+            'arolla.proto.testing.test_pb2.Inner.Inner2'
+        ),
+        test_pb2.Inner.Inner2,
+    )
+    self.assertRaises(
+        ValueError,
+        protopath.import_proto_class,
+        'arolla.proto.testing.test_pb2.NotFound',
+    )
     self.assertRaises(ValueError, protopath.import_proto_class,
                       'module.not.found_pb2.MessageName')
     self.assertRaisesRegex(ValueError, '"_pb2."', protopath.import_proto_class,

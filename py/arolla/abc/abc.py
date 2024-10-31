@@ -89,6 +89,7 @@ make_lambda = _expr.make_lambda
 make_operator_node = _expr.make_operator_node
 placeholder = _expr.placeholder
 quote = _expr.quote
+read_name_annotation = _expr.read_name_annotation
 register_operator = _expr.register_operator
 to_lower_node = _expr.to_lower_node
 to_lowest = _expr.to_lowest
@@ -175,6 +176,7 @@ clear_caches = _utils.clear_caches
 get_numpy_module_or_dummy = _utils.get_numpy_module_or_dummy
 get_type_name = _utils.get_type_name
 import_numpy = _utils.import_numpy
+vectorcall = _utils.vectorcall
 # go/keep-sorted end
 
 

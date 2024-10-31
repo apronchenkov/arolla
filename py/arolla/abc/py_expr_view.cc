@@ -16,11 +16,11 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 
+#include "absl/base/no_destructor.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/check.h"
@@ -30,7 +30,6 @@
 #include "arolla/expr/expr_node.h"
 #include "arolla/expr/expr_operator.h"
 #include "arolla/qtype/qtype.h"
-#include "arolla/util/indestructible.h"
 
 namespace arolla::python {
 
@@ -66,7 +65,7 @@ class ExprView {
     if (auto it = members_.find(member_name); it != members_.end()) {
       return it->second;
     }
-    static const Indestructible<PyObjectPtr> stub;
+    static const absl::NoDestructor<PyObjectPtr> stub;
     return *stub;
   }
 
@@ -136,7 +135,7 @@ using ExprViewByOperatorKey =
 class ExprViewRegistry {
  public:
   static ExprViewRegistry& instance() {
-    static Indestructible<ExprViewRegistry> result;
+    static absl::NoDestructor<ExprViewRegistry> result;
     return *result;
   }
 
@@ -322,7 +321,8 @@ const PyObjectPtr& ExprViewProxy::LookupMemberOrNull(
     absl::string_view member_name) const {
   DCheckPyGIL();
   auto& registry = ExprViewRegistry::instance();
-  DCHECK_EQ(revision_id_, registry.revision_id());
+  DCHECK_EQ(revision_id_, registry.revision_id())
+      << "Did you forget to call Actualize()?";
   for (auto* expr_view : expr_views_) {
     if (const auto& result = expr_view->LookupMemberOrNull(member_name);
         result != nullptr) {

@@ -14,7 +14,7 @@
 
 load("//arolla/util/testing:testing.bzl", "benchmark_smoke_test")
 
-package(default_visibility = ["//arolla/jagged_shape:__subpackages__"])
+package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
@@ -59,6 +59,7 @@ cc_library(
 
 cc_test(
     name = "concat_test",
+    timeout = "long",
     srcs = ["concat_test.cc"],
     deps = [
         ":concat",

@@ -122,12 +122,14 @@ PYBIND11_MODULE(clib, m) {
       kDefPyLiteral,                          //
       kDefPyMakeOperatorNode,                 //
       kDefPyPlaceholder,                      //
+      kDefPyReadNameAnnotation,               //
       kDefPyToLowerNode,                      //
       kDefPyToLowest,                         //
       kDefPyTransform,                        //
       kDefPyUnsafeMakeOperatorNode,           //
       kDefPyUnsafeMakeRegisteredOperator,     //
-      kDefPyUnspecified                       //
+      kDefPyUnspecified,                      //
+      kDefPyVectorcall                        //
       >(m);                                   // go/keep-sorted end
 
   // NOTE: We disable prepending of function signatures to docstrings because

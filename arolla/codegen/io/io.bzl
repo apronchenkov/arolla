@@ -24,13 +24,18 @@ load(
     "merge_dicts",
 )
 
+# Generated IO code is producing a lot of debug information that is not really useful.
+# We use -gmlt to be able to benefit from fdo profile generation.
+GEN_RULE_DEFAULT_COPTS = [
+]
+
 # core dependencies for all input loaders and slot listeners
 _CORE_DEPS = [
     "@com_google_absl//absl/memory",
     "@com_google_absl//absl/types:span",
     "//arolla/codegen:qtype_utils",
     "//arolla/io",
-    "//arolla/proto",
+    "//arolla/io/proto_types",
     "//arolla/qexpr",
     "//arolla/qtype",
     "//arolla/util",
@@ -49,7 +54,7 @@ def _join_dicts_of_lists(dicts):
 _PROTO_NO_ARRAY_DEPS = [
     "//arolla/codegen/io:multi_loader",
     "//arolla/memory",
-    "//arolla/proto",
+    "//arolla/io/proto_types",
     "//arolla/util",
 ]
 
@@ -433,7 +438,7 @@ def filtered_by_name_accessor(accessor_list, is_allowed):
         array_type_hdrs = merged_accessor.array_type_hdrs,
     )
 
-def filtered_for_models_accessor(accessor_list, model_io_infos):
+def filtered_for_models_accessor(accessor_list, model_io_infos, strip_prefix = ""):
     """Returns accessor_generator that keep only accessors for given models.
 
     For input_loader filtering happen by inputs, for slot_listener
@@ -442,6 +447,8 @@ def filtered_for_models_accessor(accessor_list, model_io_infos):
     Args:
       accessor_list: list of accessors
       model_io_infos: list of targets with textproto with ModelInputOutputInfo.
+      strip_prefix: (optional) prefix to strip from the input / output names in model_io_infos. The
+        fields that don't start with the prefix will be filtered out automatically.
 
     Returns:
       accessor_generator providing accessors required for the models.
@@ -450,7 +457,11 @@ def filtered_for_models_accessor(accessor_list, model_io_infos):
     return accessor_generator(
         call_python_function(
             "arolla.codegen.io.accessor_generator.filtered_for_models_accessor",
-            args = [merged_accessor.generator_fn, ["$(location %s)" % f for f in model_io_infos]],
+            args = [
+                merged_accessor.generator_fn,
+                ["$(location %s)" % f for f in model_io_infos],
+            ],
+            kwargs = {"strip_prefix": strip_prefix},
             deps = [
                 "//arolla/codegen/io",
             ],
@@ -655,8 +666,7 @@ def input_loader(
         fail("Unknown array type", array_type)
     testonly = kwargs.get("testonly", 0)
 
-    # Generated IO code is producing a lot of debug information that is not really useful.
-    copts = list(kwargs.pop("copts", ["-g0"]))
+    copts = list(kwargs.pop("copts", GEN_RULE_DEFAULT_COPTS))
     tool_deps = list(tool_deps)
     tool_data = list(tool_data)
 
@@ -815,8 +825,7 @@ def input_loader_set(
     """
     testonly = kwargs.get("testonly", 0)
 
-    # Generated IO code is producing a lot of debug information that is not really useful.
-    copts = list(kwargs.pop("copts", ["-g0"]))
+    copts = list(kwargs.pop("copts", GEN_RULE_DEFAULT_COPTS))
     if type(loaders_spec) == type([]):
         loaders_spec = merge_dicts(*loaders_spec)
     deps_info = _collect_deps_info_from_specs(loaders_spec)
@@ -908,8 +917,7 @@ def wildcard_input_loaders(
         fail("Unknown array type", array_type)
     testonly = kwargs.get("testonly", 0)
 
-    # Generated IO code is producing a lot of debug information that is not really useful.
-    copts = list(kwargs.pop("copts", ["-g0"]))
+    copts = list(kwargs.pop("copts", GEN_RULE_DEFAULT_COPTS))
 
     dep_info = _collect_deps_info_from_accessors_and_headers(
         loader_name2accessor.values(),
@@ -1015,8 +1023,7 @@ def slot_listener(
         fail("Unknown array type", array_type)
     testonly = kwargs.get("testonly", 0)
 
-    # Generated IO code is producing a lot of debug information that is not really useful.
-    copts = list(kwargs.pop("copts", ["-g0"]))
+    copts = list(kwargs.pop("copts", GEN_RULE_DEFAULT_COPTS))
     tool_deps = list(tool_deps)
     tool_data = list(tool_data)
 
@@ -1033,7 +1040,7 @@ def slot_listener(
         deps + [
             "//arolla/io",
             "//arolla/memory",
-            "//arolla/proto",
+            "//arolla/io/proto_types",
             "//arolla/util",
             "@com_google_absl//absl/strings",
         ],
@@ -1143,15 +1150,14 @@ def slot_listener_set(
     """
     testonly = kwargs.get("testonly", 0)
 
-    # Generated IO code is producing a lot of debug information that is not really useful.
-    copts = list(kwargs.pop("copts", ["-g0"]))
+    copts = list(kwargs.pop("copts", GEN_RULE_DEFAULT_COPTS))
     if type(listeners_spec) == type([]):
         listeners_spec = merge_dicts(*listeners_spec)
     deps_info = _collect_deps_info_from_specs(listeners_spec)
     deps = depset(deps + deps_info.deps + _CORE_DEPS + [
         "//arolla/io",
         "//arolla/memory",
-        "//arolla/proto",
+        "//arolla/io/proto_types",
         "//arolla/util",
         "@com_google_absl//absl/strings",
     ]).to_list()

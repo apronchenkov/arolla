@@ -24,7 +24,6 @@
 #include "arolla/qtype/qtype.h"
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/shape_qtype.h"
-#include "arolla/util/status_macros_backport.h"
 
 namespace arolla {
 
@@ -123,13 +122,8 @@ absl::StatusOr<QTypePtr> ToOptionalLikeQType(QTypePtr qtype) {
     if (IsScalarQType(qtype)) {
       return ToOptionalQType(qtype);
     }
-  } else {
-    if (IsOptionalLikeQType(qtype)) {
-      return qtype;
-    }
-    if (auto* array_qtype = dynamic_cast<const ArrayLikeQType*>(qtype)) {
-      return qtype;
-    }
+  } else if (IsOptionalLikeQType(qtype)) {
+    return qtype;
   }
   return absl::InvalidArgumentError(
       absl::StrFormat("no optional-like qtype for %s", qtype->name()));

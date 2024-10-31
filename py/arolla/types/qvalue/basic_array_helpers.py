@@ -16,7 +16,7 @@
 
 from typing import Any, SupportsIndex
 from arolla.abc import abc as arolla_abc
-from arolla.types.qtype import array_qtype
+from arolla.types.qtype import array_qtypes
 
 
 class BasicArray(arolla_abc.QValue):
@@ -54,15 +54,17 @@ class BasicArray(arolla_abc.QValue):
     try:
       return self._value_qtype
     except AttributeError:
-      self._value_qtype = self.qtype.value_qtype
-      return self._value_qtype
+      value_qtype = self.qtype.value_qtype
+      assert value_qtype is not None
+      self._value_qtype = value_qtype
+      return value_qtype
 
   def __len__(self) -> int:
     return self.size
 
   def __getitem__(self, i: SupportsIndex) -> arolla_abc.AnyQValue:
-    return array_qtype.get_array_item(self, i)
+    return array_qtypes.get_array_item(self, i)
 
   def py_value(self) -> list[Any]:
     """Returns list of values with None for missing values."""
-    return array_qtype.get_array_py_value(self)
+    return array_qtypes.get_array_py_value(self)

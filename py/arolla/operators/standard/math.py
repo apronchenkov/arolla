@@ -45,10 +45,13 @@ def float_(x):
   Returns:
     A floating-point value.
   """
-  nop_case = arolla.types.RestrictedLambdaOperator(
-      P.x, qtype_constraints=[constraints.expect_floats(P.x)]
-  )
-  return arolla.optools.dispatch[nop_case, M_core.to_float32](x)
+  return arolla.types.DispatchOperator(
+      'x',
+      trivial_case=arolla.types.DispatchCase(
+          M_core.to_float32, condition=M_qtype.is_integral_qtype(P.x)
+      ),
+      default=P.x,
+  )(x)
 
 
 _unary_numeric_predicate = dict(
@@ -57,65 +60,120 @@ _unary_numeric_predicate = dict(
 )
 
 
-# TODO: Optimize to "always true" for int inputs.
 @arolla.optools.add_to_registry()
 @arolla.optools.as_backend_operator(
-    'math.is_finite', **_unary_numeric_predicate
+    'math._is_finite',
+    qtype_constraints=[constraints.expect_floats(P.x)],
+    qtype_inference_expr=M_qtype.broadcast_qtype_like(
+        P.x, arolla.OPTIONAL_UNIT
+    ),
+)
+def _is_finite(x):
+  """(internal) Returns a present value iff x is a finite value."""
+  raise NotImplementedError('provided by backend')
+
+
+@arolla.optools.add_to_registry()
+@arolla.optools.as_lambda_operator(
+    'math.is_finite',
+    qtype_constraints=[constraints.expect_numerics(P.x)],
 )
 def is_finite(x):
   """Returns a present value iff x is a finite value, i.e. not +/-INF or NaN."""
+  return arolla.types.DispatchOperator(
+      'x',
+      int_case=arolla.types.DispatchCase(
+          M_core.has(P.x),
+          condition=M_qtype.is_integral_qtype(P.x),
+      ),
+      default=_is_finite,
+  )(x)
+
+
+@arolla.optools.add_to_registry()
+@arolla.optools.as_backend_operator(
+    'math._is_inf',
+    qtype_constraints=[constraints.expect_floats(P.x)],
+    qtype_inference_expr=M_qtype.broadcast_qtype_like(
+        P.x, arolla.OPTIONAL_UNIT
+    ),
+)
+def _is_inf(x):
+  """(internal) Returns a present value iff x is +/-INF."""
   raise NotImplementedError('provided by backend')
 
 
-# TODO: Optimize to "always false" for int inputs.
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.is_inf', **_unary_numeric_predicate)
+@arolla.optools.as_lambda_operator(
+    'math.is_inf',
+    qtype_constraints=[constraints.expect_numerics(P.x)],
+)
 def is_inf(x):
-  """Returns a present value iff x is a positive or negative infinity.."""
+  """Returns a present value iff x is +/-INF."""
+  return arolla.types.DispatchOperator(
+      'x',
+      int_case=arolla.types.DispatchCase(
+          M_core.broadcast_like(P.x, arolla.missing()),
+          condition=M_qtype.is_integral_qtype(P.x),
+      ),
+      default=_is_inf,
+  )(x)
+
+
+@arolla.optools.add_to_registry()
+@arolla.optools.as_backend_operator(
+    'math._is_nan',
+    qtype_constraints=[constraints.expect_floats(P.x)],
+    qtype_inference_expr=M_qtype.broadcast_qtype_like(
+        P.x, arolla.OPTIONAL_UNIT
+    ),
+)
+def _is_nan(x):
+  """(internal) Returns a present value iff x is NaN."""
   raise NotImplementedError('provided by backend')
 
 
-# TODO: Optimize to "always false" for int inputs.
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.is_nan', **_unary_numeric_predicate)
+@arolla.optools.as_lambda_operator(
+    'math.is_nan',
+    qtype_constraints=[constraints.expect_numerics(P.x)],
+)
 def is_nan(x):
-  """Returns a present value iff x is a not-a-number (NaN) value."""
-  raise NotImplementedError('provided by backend')
+  """Returns a present value iff x is NaN."""
+  return arolla.types.DispatchOperator(
+      'x',
+      int_case=arolla.types.DispatchCase(
+          M_core.broadcast_like(P.x, arolla.missing()),
+          condition=M_qtype.is_integral_qtype(P.x),
+      ),
+      default=_is_nan,
+  )(x)
 
 
-# TODO: Refactor to _numeric_to_common_type(*args).
-_unary_numeric = dict(
-    qtype_constraints=[constraints.expect_numerics(P.x)],
-    qtype_inference_expr=P.x,
-)
+def _numeric_to_numeric(*args):
+  """Constraints and inference expr for backend numeric operators."""
+  qtype_constraints = [constraints.expect_numerics(arg) for arg in args]
+  if len(args) > 1:
+    qtype_constraints.append(constraints.expect_implicit_cast_compatible(*args))
+  return dict(
+      qtype_constraints=qtype_constraints,
+      qtype_inference_expr=constraints.common_qtype_expr(*args),
+  )
 
-_binary_numeric = dict(
-    qtype_constraints=[
-        constraints.expect_numerics(P.x),
-        constraints.expect_numerics(P.y),
-        constraints.expect_implicit_cast_compatible(P.x, P.y),
-    ],
-    qtype_inference_expr=M_qtype.common_qtype(P.x, P.y),
-)
 
-# TODO: Refactor to _numeric_to_common_float_type(*args).
-_unary_numeric_to_float = dict(
-    qtype_constraints=[constraints.expect_numerics(P.x)],
-    qtype_inference_expr=M_qtype.get_float_qtype(P.x),
-)
-
-_binary_numeric_to_common_float = dict(
-    qtype_constraints=[
-        constraints.expect_numerics(P.x),
-        constraints.expect_numerics(P.y),
-        constraints.expect_implicit_cast_compatible(P.x, P.y),
-    ],
-    qtype_inference_expr=constraints.common_float_qtype_expr(P.x, P.y),
-)
+def _numeric_to_float(*args):
+  """Constraints and inference expr for backend floating operators."""
+  qtype_constraints = [constraints.expect_numerics(arg) for arg in args]
+  if len(args) > 1:
+    qtype_constraints.append(constraints.expect_implicit_cast_compatible(*args))
+  return dict(
+      qtype_constraints=qtype_constraints,
+      qtype_inference_expr=constraints.common_float_qtype_expr(*args),
+  )
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.abs', **_unary_numeric)
+@arolla.optools.as_backend_operator('math.abs', **_numeric_to_numeric(P.x))
 def abs_(x):
   """Returns numerical absolute value element-wise."""
   raise NotImplementedError('provided by backend')
@@ -187,7 +245,7 @@ def cdf(x, weights=arolla.unspecified(), over=arolla.unspecified()):
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.neg', **_unary_numeric)
+@arolla.optools.as_backend_operator('math.neg', **_numeric_to_numeric(P.x))
 def neg(x):
   """Returns numerical negative value element-wise."""
   raise NotImplementedError('provided by backend')
@@ -203,18 +261,14 @@ def pos(x):
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.sign', **_unary_numeric)
+@arolla.optools.as_backend_operator('math.sign', **_numeric_to_numeric(P.x))
 def sign(x):
   """Returns the sign (+/-1) element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator(
-    'math._round',
-    qtype_constraints=[constraints.expect_floats(P.x)],
-    qtype_inference_expr=P.x,
-)
+@arolla.optools.as_backend_operator('math._round', qtype_inference_expr=P.x)
 def _round(x):
   """(internal) Rounds the values to the nearest integer, element-wise."""
   raise NotImplementedError('provided by backend')
@@ -222,19 +276,21 @@ def _round(x):
 
 @arolla.optools.add_to_registry()
 @arolla.optools.as_lambda_operator(
-    'math.round', qtype_constraints=(constraints.expect_numerics(P.x),)
+    'math.round', qtype_constraints=[constraints.expect_numerics(P.x)]
 )
 def round_(x):
   """Rounds the values to the nearest integer, element-wise."""
-  return arolla.optools.dispatch[_round, M_core.identity](x)
+  return arolla.types.DispatchOperator(
+      'x',
+      trivial_case=arolla.types.DispatchCase(
+          P.x, condition=M_qtype.is_integral_qtype(P.x)
+      ),
+      default=_round,
+  )(x)
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator(
-    'math._floor',
-    qtype_constraints=[constraints.expect_floats(P.x)],
-    qtype_inference_expr=P.x,
-)
+@arolla.optools.as_backend_operator('math._floor', qtype_inference_expr=P.x)
 def _floor(x):
   """(internal) Returns the floor of the input, element-wise."""
   raise NotImplementedError('provided by backend')
@@ -242,19 +298,21 @@ def _floor(x):
 
 @arolla.optools.add_to_registry()
 @arolla.optools.as_lambda_operator(
-    'math.floor', qtype_constraints=(constraints.expect_numerics(P.x),)
+    'math.floor', qtype_constraints=[constraints.expect_numerics(P.x)]
 )
 def floor(x):
   """Return the floor of the input, element-wise."""
-  return arolla.optools.dispatch[_floor, M_core.identity](x)
+  return arolla.types.DispatchOperator(
+      'x',
+      trivial_case=arolla.types.DispatchCase(
+          P.x, condition=M_qtype.is_integral_qtype(P.x)
+      ),
+      default=_floor,
+  )(x)
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator(
-    'math._ceil',
-    qtype_constraints=[constraints.expect_floats(P.x)],
-    qtype_inference_expr=P.x,
-)
+@arolla.optools.as_backend_operator('math._ceil', qtype_inference_expr=P.x)
 def _ceil(x):
   """(internal) Returns the ceiling of the input, element-wise."""
   raise NotImplementedError('provided by backend')
@@ -266,32 +324,38 @@ def _ceil(x):
 )
 def ceil(x):
   """Return the ceiling of the input, element-wise."""
-  return arolla.optools.dispatch[_ceil, M_core.identity](x)
+  return arolla.types.DispatchOperator(
+      'x',
+      trivial_case=arolla.types.DispatchCase(
+          P.x, condition=M_qtype.is_integral_qtype(P.x)
+      ),
+      default=_ceil,
+  )(x)
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.log', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.log', **_numeric_to_float(P.x))
 def log(x):
   """Returns natural logarithm of x element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.log1p', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.log1p', **_numeric_to_float(P.x))
 def log1p(x):
   """Returns natural logarithm of 1 + x element-wise.."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.log2', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.log2', **_numeric_to_float(P.x))
 def log2(x):
   """Returns base-2 logarithm of x element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.log10', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.log10', **_numeric_to_float(P.x))
 def log10(x):
   """Returns base-10 logarithm of x element-wise."""
   raise NotImplementedError('provided by backend')
@@ -299,7 +363,7 @@ def log10(x):
 
 @arolla.optools.add_to_registry()
 @arolla.optools.as_backend_operator(
-    'math.log_sigmoid', **_unary_numeric_to_float
+    'math.log_sigmoid', **_numeric_to_float(P.x)
 )
 def log_sigmoid(x):
   """Returns natural logarithm of sigmoid of x element-wise."""
@@ -307,98 +371,106 @@ def log_sigmoid(x):
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.logit', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.logit', **_numeric_to_float(P.x))
 def logit(x):
   """Returns log(1 / (1 - x)) element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.symlog1p', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.symlog1p', **_numeric_to_float(P.x))
 def symlog1p(x):
   """Returns log1p(|x|) * sign(x) element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.exp', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.exp', **_numeric_to_float(P.x))
 def exp(x):
   """Returns exponential of x element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.expm1', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.expm1', **_numeric_to_float(P.x))
 def expm1(x):
   """Returns exp(x) - 1 element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.trig.atan', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.trig.atan', **_numeric_to_float(P.x))
 def trig_atan(x):
   """Returns the trignometric inverse tangent of x element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.trig.cos', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.trig.cos', **_numeric_to_float(P.x))
 def trig_cos(x):
   """Returns the cosine of x element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.trig.sin', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.trig.sin', **_numeric_to_float(P.x))
 def trig_sin(x):
   """Returns the sine of x element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.trig.sinh', **_unary_numeric_to_float)
+@arolla.optools.as_backend_operator('math.trig.sinh', **_numeric_to_float(P.x))
 def trig_sinh(x):
   """Returns the hyperbolic sine of x element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.add', **_binary_numeric)
+@arolla.optools.as_backend_operator('math.add', **_numeric_to_numeric(P.x, P.y))
 def add(x, y):
   """Returns x + y element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.multiply', **_binary_numeric)
+@arolla.optools.as_backend_operator(
+    'math.multiply', **_numeric_to_numeric(P.x, P.y)
+)
 def multiply(x, y):
   """Returns x * y element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.floordiv', **_binary_numeric)
+@arolla.optools.as_backend_operator(
+    'math.floordiv', **_numeric_to_numeric(P.x, P.y)
+)
 def floordiv(x, y):
   """Divides x / y element-wise, rounding toward -inf."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.mod', **_binary_numeric)
+@arolla.optools.as_backend_operator('math.mod', **_numeric_to_numeric(P.x, P.y))
 def mod(x, y):
   """Returns the remainder of floordiv operation element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.maximum', **_binary_numeric)
+@arolla.optools.as_backend_operator(
+    'math.maximum', **_numeric_to_numeric(P.x, P.y)
+)
 def maximum(x, y):
   """Returns the maximum of x and y element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator('math.minimum', **_binary_numeric)
+@arolla.optools.as_backend_operator(
+    'math.minimum', **_numeric_to_numeric(P.x, P.y)
+)
 def minimum(x, y):
   """Returns the minimum of x and y element-wise."""
   raise NotImplementedError('provided by backend')
@@ -406,7 +478,7 @@ def minimum(x, y):
 
 @arolla.optools.add_to_registry()
 @arolla.optools.as_backend_operator(
-    'math.divide', **_binary_numeric_to_common_float
+    'math.divide', **_numeric_to_float(P.x, P.y)
 )
 def divide(x, y):
   """Divides x / y element-wise."""
@@ -414,73 +486,47 @@ def divide(x, y):
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator(
-    'math.fmod', **_binary_numeric_to_common_float
-)
+@arolla.optools.as_backend_operator('math.fmod', **_numeric_to_float(P.x, P.y))
 def fmod(x, y):
   """Returns the remainder of division element-wise."""
   raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
-@arolla.optools.as_backend_operator(
-    'math._pow', **_binary_numeric_to_common_float
-)
-def _pow(x, y):
-  """(internal) Returns x raised to power y, element-wise."""
-  raise NotImplementedError('provided by backend')
-
-
-@arolla.optools.add_to_registry()
-@arolla.optools.as_lambda_operator('math.pow')
+@arolla.optools.as_backend_operator('math.pow', **_numeric_to_float(P.x, P.y))
 def pow_(x, y):
   """Returns x raised to power y, element-wise."""
-  return _pow(x, float_(y))
+  raise NotImplementedError('provided by backend')
 
 
 @arolla.optools.add_to_registry()
 @arolla.optools.as_lambda_operator(
     'math.is_close',
     qtype_constraints=[
-        # Restricting the inputs to floats because implicit casting to float32
-        # is lossy and might be error prone for this operator.
-        constraints.expect_floats(P.x),
-        constraints.expect_floats(P.y),
-        (
-            M_qtype.is_numeric_qtype(P.rtol) | (P.rtol == arolla.UNSPECIFIED),
-            (
-                'expected floating-points or unspecified, got'
-                f' {constraints.name_type_msg(P.rtol)}'
-            ),
-        ),
+        constraints.expect_numerics(P.x),
+        constraints.expect_numerics(P.y),
+        constraints.expect_numerics(P.rtol),
         constraints.expect_numerics(P.atol),
-        (
-            constraints.broadcast_qtype_expr(
-                [P.x, P.y, P.atol],
-                M_qtype.conditional_qtype(
-                    P.rtol != arolla.UNSPECIFIED, P.rtol, arolla.UNIT
-                ),
-            )
-            != arolla.NOTHING,
-            (
-                'broadcast incompatible types'
-                f' {constraints.name_type_msg(P.x)},'
-                f' {constraints.name_type_msg(P.y)},'
-                f' {constraints.name_type_msg(P.rtol)},'
-                f' {constraints.name_type_msg(P.atol)}'
-            ),
-        ),
+        # Specify multiple broadcast compatibility constraints to help
+        # detect_qtype_signature() discard unsupported partial signatures.
+        constraints.expect_broadcast_compatible(P.x, P.y),
+        constraints.expect_broadcast_compatible(P.x, P.y, P.rtol),
+        constraints.expect_broadcast_compatible(P.x, P.y, P.rtol, P.atol),
     ],
 )
-def is_close(x, y, rtol=arolla.unspecified(), atol=arolla.float32(0.0)):
+def is_close(x, y, rtol=1e-05, atol=1e-08):
   """Returns a present value iff x is close to y.
+
+  NOTE: The operator accepts integer arguments, but it compares them as float64
+  internally (same as `math.isclose` in Python). So precision loss is possible
+  for large integers. For example, is_close(2**63 - 1, 2**63 - 100, atol=1)
+  returns `present`.
 
   Args:
     x: A number to compare.
     y: A number to compare.
     rtol: Relative tolerance, the maximum allowed difference between 'x' and
-      'y', as a fraction of the larger of |x| and |y|. The default values are
-      1e-6 for float32 arguments and 1e-9 for float64.
+      'y', as a fraction of the larger of |x| and |y|.
     atol: Absolute tolerance, the maximum allowed difference between 'x' and
       'y', which is useful for comparisons near zero. 'atol' must always be
       nonnegative.
@@ -488,22 +534,12 @@ def is_close(x, y, rtol=arolla.unspecified(), atol=arolla.float32(0.0)):
   Returns:
     a present value iff x is close to y.
   """
-  args_scalar_qtype = constraints.common_float_qtype_expr(
-      M_qtype.scalar_qtype_of(x), M_qtype.scalar_qtype_of(y)
-  )
-  rtol_or_default = M_core.default_if_unspecified(
-      rtol,
-      (arolla.float32(1e-6) & (args_scalar_qtype == arolla.FLOAT32))
-      | arolla.float64(1e-9),
-  )
-  return (x == y) | (
-      is_finite(x)
-      & is_finite(y)
-      & (
-          abs_(x - y)
-          <= maximum(rtol_or_default * maximum(abs_(x), abs_(y)), atol)
-      )
-  )
+  # Explicitly convert arguments to float64 to avoid overflow and minimize
+  # precision loss in the integer case.
+  x = M_core.to_float64(x)
+  y = M_core.to_float64(y)
+  tol = maximum(rtol * maximum(abs_(x), abs_(y)), atol)
+  return (x == y) | (is_finite(x) & is_finite(y) & (abs_(x - y) <= tol))
 
 
 @arolla.optools.add_to_registry()
@@ -634,8 +670,7 @@ def beta_distribution_inverse_cdf(cdf_arg, alpha, beta):
 
 @arolla.optools.add_to_registry()
 @arolla.optools.as_backend_operator(
-    'math.normal_distribution_inverse_cdf',
-    **_unary_numeric_to_float,
+    'math.normal_distribution_inverse_cdf', **_numeric_to_float(P.x)
 )
 def normal_distribution_inverse_cdf(x):
   """Returns the normal distribution inverse CDF.
@@ -777,7 +812,6 @@ def _sum_sparse(x, into=arolla.unspecified()):
 )
 def _mean(x, into):
   """(internal) Returns the means of non-missing elements group-wise."""
-  # TODO: Consider supporting integer inputs in the backend.
   raise NotImplementedError('provided by backend')
 
 

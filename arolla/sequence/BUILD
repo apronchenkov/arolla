@@ -34,6 +34,7 @@ cc_library(
         "//arolla/qtype",
         "//arolla/util",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:no_destructor",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
@@ -53,6 +54,7 @@ cc_test(
         ":sequence",
         "//arolla/qtype",
         "//arolla/util",
+        "//arolla/util/testing",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",
@@ -82,7 +84,6 @@ cc_test(
     deps = [
         ":sequence",
         "//arolla/qtype",
-        "//arolla/util",
         "//arolla/util/testing",
         "@com_google_googletest//:gtest_main",
     ],

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import collections
 import functools
-from typing import Collection, Iterator, Mapping, Self
+from typing import Collection, Iterator, Mapping
 
 from arolla.abc import abc as arolla_abc
 from arolla.expr import builtin_ops
@@ -123,10 +123,10 @@ def _unsafe_make_registered_operator(
 ) -> arolla_abc.RegisteredOperator:
   """Returns a proxy to an operator in the registry.
 
-  Note: The key difference from rl.abc.unsafe_make_registered_operator() is
+  Note: The key difference from arolla.abc.unsafe_make_registered_operator() is
   that this function caches operator instances, so that they do not need to be
-  created repeatedly. We cannot use caching in rl.abc as qvalue specialization
-  might not yet be available there.
+  created repeatedly. We cannot use caching in arolla.abc as qvalue
+  specialization might not yet be available there.
 
   Args:
     operator_name: Operator name.
@@ -181,7 +181,7 @@ class OperatorsContainer:
   _prefix: str
   _visible_namespaces: Collection[str]
 
-  def __new__(cls, *extra_modules) -> Self:
+  def __new__(cls, *extra_modules) -> OperatorsContainer:
     """Returns an OperatorsContainer for specified modules.
 
     Builtin operators are always included.
@@ -198,7 +198,9 @@ class OperatorsContainer:
         visible_namespaces.update(_extract_all_namespaces(ns))
     return _new_operators_container('', frozenset(visible_namespaces))
 
-  def __getattr__(self, key: str) -> arolla_abc.RegisteredOperator | Self:
+  def __getattr__(
+      self, key: str
+  ) -> arolla_abc.RegisteredOperator | OperatorsContainer:
     """Returns an operator or a container of operators for an inner namespace.
 
     Args:

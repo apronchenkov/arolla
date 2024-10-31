@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -58,7 +59,6 @@
 #include "arolla/qtype/typed_value.h"
 #include "arolla/qtype/unspecified_qtype.h"
 #include "arolla/util/bytes.h"
-#include "arolla/util/init_arolla.h"
 #include "arolla/util/status_macros_backport.h"
 
 namespace arolla::expr {
@@ -99,12 +99,7 @@ CreateTestInt32InputLoader() {
       "y", [](const TestInputs& in) -> int32_t { return in.y; });
 }
 
-class ModelExecutorTest : public ::testing::Test {
- protected:
-  void SetUp() override { InitArolla(); }
-};
-
-TEST_F(ModelExecutorTest, Move) {
+TEST(ModelExecutorTest, Move) {
   ASSERT_OK_AND_ASSIGN(auto x_plus_y,
                        CallOp("math.add", {Leaf("x"), Leaf("y")}));
   ASSERT_OK_AND_ASSIGN(auto input_loader, CreateTestInputLoader());
@@ -128,7 +123,7 @@ TEST_F(ModelExecutorTest, Move) {
   ASSERT_THAT(other_executor.IsValid(), IsFalse());
 }
 
-TEST_F(ModelExecutorTest, MissingInputs) {
+TEST(ModelExecutorTest, MissingInputs) {
   ASSERT_OK_AND_ASSIGN(auto x_plus_y, CallOp("math.add", {Leaf("unknown_x"),
                                                           Leaf("unknown_y")}));
 
@@ -139,7 +134,7 @@ TEST_F(ModelExecutorTest, MissingInputs) {
                "unknown inputs: unknown_x, unknown_y (available: x, y)"));
 }
 
-TEST_F(ModelExecutorTest, SimpleExpr) {
+TEST(ModelExecutorTest, SimpleExpr) {
   ASSERT_OK_AND_ASSIGN(auto x_plus_y,
                        CallOp("math.add", {Leaf("x"), Leaf("y")}));
   ASSERT_OK_AND_ASSIGN(auto input_loader, CreateTestInputLoader());
@@ -220,7 +215,7 @@ TEST_F(ModelExecutorTest, SimpleExpr) {
   }
 }
 
-TEST_F(ModelExecutorTest, ReturnsStdOptional) {
+TEST(ModelExecutorTest, ReturnsStdOptional) {
   ASSERT_OK_AND_ASSIGN(auto input_loader, CreateTestInputLoader());
   {
     ASSERT_OK_AND_ASSIGN(auto optional_x,
@@ -243,7 +238,7 @@ TEST_F(ModelExecutorTest, ReturnsStdOptional) {
   }
 }
 
-TEST_F(ModelExecutorTest, ReturnsStdVectorOfOptional) {
+TEST(ModelExecutorTest, ReturnsStdVectorOfOptional) {
   ASSERT_OK_AND_ASSIGN(
       auto input_loader,
       CreateAccessorsInputLoader<TestInputs>(
@@ -265,7 +260,7 @@ TEST_F(ModelExecutorTest, ReturnsStdVectorOfOptional) {
               IsOkAndHolds(ElementsAre(0, 57, std::nullopt)));
 }
 
-TEST_F(ModelExecutorTest, ReturnsStdVector) {
+TEST(ModelExecutorTest, ReturnsStdVector) {
   ASSERT_OK_AND_ASSIGN(
       auto input_loader,
       CreateAccessorsInputLoader<TestInputs>("x", [](const TestInputs& in) {
@@ -311,7 +306,7 @@ class MockOperatorDirectory : public OperatorDirectory {
               (const, override));
 };
 
-TEST_F(ModelExecutorTest, OptionsPropagatedToCasting) {
+TEST(ModelExecutorTest, OptionsPropagatedToCasting) {
   ASSERT_OK_AND_ASSIGN(auto x_plus_y,
                        CallOp("math.add", {Leaf("x"), Leaf("y")}));
   ASSERT_OK_AND_ASSIGN(auto input_loader, CreateTestInputLoader());
@@ -338,7 +333,7 @@ TEST_F(ModelExecutorTest, OptionsPropagatedToCasting) {
               IsOkAndHolds(OptionalValue<int64_t>(12)));
 }
 
-TEST_F(ModelExecutorTest, ExternalBufferFactory) {
+TEST(ModelExecutorTest, ExternalBufferFactory) {
   ASSERT_OK_AND_ASSIGN(
       auto expr, CallOp("array.as_dense_array",
                         {CallOp("core.make_tuple", {Leaf("x"), Leaf("y")})}));
@@ -363,7 +358,7 @@ TEST_F(ModelExecutorTest, ExternalBufferFactory) {
   EXPECT_TRUE(res.is_owned());
 }
 
-TEST_F(ModelExecutorTest, ReturnsNonOptional) {
+TEST(ModelExecutorTest, ReturnsNonOptional) {
   ASSERT_OK_AND_ASSIGN(
       auto input_loader,
       CreateAccessorsInputLoader<TestInputs>(
@@ -398,7 +393,7 @@ TEST_F(ModelExecutorTest, ReturnsNonOptional) {
                          "TypedValue outputs")));
 }
 
-TEST_F(ModelExecutorTest, ReturnsStdVectorBytes) {
+TEST(ModelExecutorTest, ReturnsStdVectorBytes) {
   ASSERT_OK_AND_ASSIGN(
       auto input_loader,
       CreateAccessorsInputLoader<TestInputs>(
@@ -432,7 +427,7 @@ TEST_F(ModelExecutorTest, ReturnsStdVectorBytes) {
       IsOkAndHolds(ElementsAre(Bytes{"foobar"}, Bytes{"57"}, std::nullopt)));
 }
 
-TEST_F(ModelExecutorTest, SimpleExprBind) {
+TEST(ModelExecutorTest, SimpleExprBind) {
   ASSERT_OK_AND_ASSIGN(auto x_plus_y,
                        CallOp("math.add", {Leaf("x"), Leaf("y")}));
   ASSERT_OK_AND_ASSIGN(auto input_loader, CreateTestInputLoader());
@@ -521,7 +516,7 @@ struct TestSlotListener : public SlotListener<SideOutput> {
       {"out_x", GetQType<OutXT>()}, {"out_xpy", GetQType<OutYT>()}};
 };
 
-TEST_F(ModelExecutorTest, SimpleExprWithSlotListener) {
+TEST(ModelExecutorTest, SimpleExprWithSlotListener) {
   ASSERT_OK_AND_ASSIGN(auto x, WithExportAnnotation(Leaf("x"), "out_x"));
   auto y = Leaf("y");
   ASSERT_OK_AND_ASSIGN(
@@ -667,7 +662,7 @@ TEST_F(ModelExecutorTest, SimpleExprWithSlotListener) {
   }
 }
 
-TEST_F(ModelExecutorTest, SimpleExprBindWithSlotListener) {
+TEST(ModelExecutorTest, SimpleExprBindWithSlotListener) {
   ASSERT_OK_AND_ASSIGN(auto x, WithExportAnnotation(Leaf("x"), "out_x"));
   auto y = Leaf("y");
   ASSERT_OK_AND_ASSIGN(
@@ -771,20 +766,20 @@ TEST_F(ModelExecutorTest, SimpleExprBindWithSlotListener) {
             /*compiled_expr=*/*compiled_expr_with_side_output, *input_loader,
             /*compiled_expr_with_side_output=*/nullptr,
             &irrelevant_slot_listener, options)),
-        StatusIs(absl::StatusCode::kFailedPrecondition,
-                 HasSubstr(
-                     "slot listener does not listen for named outputs {out_x, "
-                     "out_xpy} (it listens to {bar, foo});")));
+        StatusIs(
+            absl::StatusCode::kFailedPrecondition,
+            HasSubstr("slot listener does not listen for named outputs {out_x, "
+                      "out_xpy} (it listens to {bar, foo});")));
     EXPECT_THAT(
         (ModelExecutor<TestInputs, int64_t, SideOutput>::Bind(
             /*compiled_expr=*/*compiled_expr, *input_loader,
             /*compiled_expr_with_side_output=*/
             compiled_expr_with_side_output.get(), &irrelevant_slot_listener,
             options)),
-        StatusIs(absl::StatusCode::kFailedPrecondition,
-                 HasSubstr(
-                     "slot listener does not listen for named outputs {out_x, "
-                     "out_xpy} (it listens to {bar, foo});")));
+        StatusIs(
+            absl::StatusCode::kFailedPrecondition,
+            HasSubstr("slot listener does not listen for named outputs {out_x, "
+                      "out_xpy} (it listens to {bar, foo});")));
     options.ignore_not_listened_named_outputs = true;
     EXPECT_THAT(
         (ModelExecutor<TestInputs, int64_t, SideOutput>::Bind(
@@ -843,15 +838,13 @@ struct CreateTestDenseArrayOp {
   }
 };
 
-TEST_F(ModelExecutorTest, ArenaMakeOwned) {
+TEST(ModelExecutorTest, ArenaMakeOwned) {
   constexpr absl::string_view op_name = "test.create_test_dense_array";
   ASSERT_OK_AND_ASSIGN(
       auto op_factory,
-      (OperatorFactory()
-           .WithName(std::string(op_name))
-           .BuildFromFunctor<CreateTestDenseArrayOp, int64_t>()));
-  ASSERT_OK(
-      ::arolla::OperatorRegistry::GetInstance()->RegisterOperator(op_factory));
+      (QExprOperatorFromFunctor<CreateTestDenseArrayOp, int64_t>()));
+  ASSERT_OK(::arolla::OperatorRegistry::GetInstance()->RegisterOperator(
+      op_name, op_factory));
   auto ReturnsDenseArray = [](absl::Span<const QTypePtr>)
       -> absl::StatusOr<expr_operators::type_meta::QTypes> {
     return expr_operators::type_meta::QTypes{GetDenseArrayQType<int>()};
@@ -899,16 +892,15 @@ CreateArenaSideEffectTestInputLoader() {
       });
 }
 
-TEST_F(ModelExecutorTest, ArenaPropagated) {
+TEST(ModelExecutorTest, ArenaPropagated) {
   using ::arolla::expr_operators::type_meta::Nth;
   constexpr absl::string_view op_name = "test.factory_side_effect";
-  ASSERT_OK_AND_ASSIGN(auto factory_side_effect,
-                       (OperatorFactory()
-                            .WithName(std::string(op_name))
-                            .BuildFromFunctor<FactorySideEffectOp, int64_t>()));
+  ASSERT_OK_AND_ASSIGN(
+      auto factory_side_effect,
+      (QExprOperatorFromFunctor<FactorySideEffectOp, int64_t>()));
   // register qexpr operator
   ASSERT_OK(::arolla::OperatorRegistry::GetInstance()->RegisterOperator(
-      factory_side_effect));
+      op_name, factory_side_effect));
   // register expr operator
   ASSERT_OK_AND_ASSIGN(auto x_sig, ExprOperatorSignature::Make("x"));
   ASSERT_OK(expr_operators::RegisterBackendOperator(op_name, x_sig, Nth(0)));

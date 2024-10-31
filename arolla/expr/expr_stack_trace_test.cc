@@ -16,17 +16,11 @@
 
 #include "gtest/gtest.h"
 #include "arolla/util/fingerprint.h"
-#include "arolla/util/init_arolla.h"
 
 namespace arolla::expr {
 namespace {
 
-class ExprStackTraceTest : public ::testing::Test {
- protected:
-  void SetUp() override { InitArolla(); }
-};
-
-TEST_F(ExprStackTraceTest, ExprStackTraceSafeReturnsOnUnregisteredFingerprint) {
+TEST(ExprStackTraceTest, ExprStackTraceSafeReturnsOnUnregisteredFingerprint) {
   DetailedExprStackTrace stack_trace;
   EXPECT_EQ(stack_trace.FullTrace(Fingerprint{0}), "");
 }

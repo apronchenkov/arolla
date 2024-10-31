@@ -34,7 +34,6 @@
 #include "arolla/qtype/qtype_traits.h"
 #include "arolla/qtype/typed_value.h"
 #include "arolla/qtype/weak_qtype.h"
-#include "arolla/util/init_arolla.h"
 #include "arolla/util/text.h"
 #include "arolla/util/status_macros_backport.h"
 
@@ -48,28 +47,20 @@ using ::testing::Test;
 
 template <typename T>
 absl::Status AddFakeAddOperator(OperatorRegistry& registry) {
-  ASSIGN_OR_RETURN(
-      auto op,
-      OperatorFactory().WithName("math.add").BuildFromFunction([](T x, T) {
-        return x;
-      }));
-  return registry.RegisterOperator(std::move(op));
+  ASSIGN_OR_RETURN(auto op,
+                   QExprOperatorFromFunction([](T x, T) { return x; }));
+  return registry.RegisterOperator("math.add", std::move(op));
 }
 
 absl::Status AddFakeLowerOperator(OperatorRegistry& registry) {
-  ASSIGN_OR_RETURN(
-      auto op,
-      OperatorFactory().WithName("strings.lower").BuildFromFunction([](Text x) {
-        return x;
-      }));
-  return registry.RegisterOperator(std::move(op));
+  ASSIGN_OR_RETURN(auto op,
+                   QExprOperatorFromFunction([](Text x) { return x; }));
+  return registry.RegisterOperator("strings.lower", std::move(op));
 }
 
 class CastingTest : public Test {
  protected:
   void SetUp() override {
-    InitArolla();
-
     backend_directory_ = std::make_shared<OperatorRegistry>();
     ASSERT_OK(AddFakeAddOperator<float>(*backend_directory_));
     ASSERT_OK(AddFakeAddOperator<double>(*backend_directory_));

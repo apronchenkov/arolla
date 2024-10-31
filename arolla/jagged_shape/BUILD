@@ -29,6 +29,7 @@ cc_library(
         "//arolla/memory",
         "//arolla/util",
         "//arolla/util:status_backport",
+        "@com_google_absl//absl/base:no_destructor",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -39,6 +40,7 @@ cc_library(
 
 cc_test(
     name = "jagged_shape_test",
+    timeout = "long",
     srcs = ["jagged_shape_test.cc"],
     deps = [
         ":jagged_shape",

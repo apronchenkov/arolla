@@ -69,6 +69,7 @@ operator_lib_list = lifted_operator_lib_list + [
 ]
 
 operator_family_lib_list = [
+    ":operator_printf",
     ":operator_format",
     ":operator_join",
 ]
@@ -172,6 +173,7 @@ cc_library(
         "//arolla/qtype/strings",
         "//arolla/util",
         "//arolla/util:status_backport",
+        "@com_google_absl//absl/base:no_destructor",
         "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -707,6 +709,14 @@ operator_libraries(
 )
 
 operator_family(
+    name = "operator_printf",
+    hdrs = ["format.h"],
+    op_family_class = "::arolla::PrintfOperatorFamily",
+    op_family_name = "strings._printf_bytes",
+    deps = [":lib"],
+)
+
+operator_family(
     name = "operator_format",
     hdrs = ["format.h"],
     op_family_class = "::arolla::FormatOperatorFamily",
@@ -736,6 +746,7 @@ cc_test(
         "//arolla/qexpr",
         "//arolla/qtype",
         "//arolla/util",
+        "//arolla/util/testing",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
@@ -752,6 +763,7 @@ cc_test(
         "//arolla/qexpr",
         "//arolla/qtype",
         "//arolla/util",
+        "//arolla/util/testing",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
@@ -769,6 +781,7 @@ cc_test(
         "//arolla/qexpr",
         "//arolla/qtype",
         "//arolla/util",
+        "//arolla/util/testing",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",

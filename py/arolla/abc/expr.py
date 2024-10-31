@@ -35,8 +35,9 @@ from arolla.abc import utils as abc_utils
 #       Returns true iff the fingerprints of the expressions are equal.
 #
 #     __format__(self, format_spec, /) -> str:
-#       Returns a string representation of the expression; the spec 'v'
+#       Returns a string representation of the expression; the spec 'verbose'
 #       enables the verbose mode.
+#       An expr-view can override this method for other non empty format specs.
 #
 #     __dir__(self) -> set[str]:
 #       Returns a set of attribute names, including the expr-view members.
@@ -189,6 +190,9 @@ make_operator_node = clib.make_operator_node
 
 # Returns a placeholder node with the given key.
 placeholder = clib.placeholder
+
+# Returns the name tag if the node is a name annotation; otherwise, None.
+read_name_annotation = clib.read_name_annotation
 
 # Registers an operator to the registry.
 register_operator = clib.register_operator

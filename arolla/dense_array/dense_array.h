@@ -147,6 +147,10 @@ struct AROLLA_API DenseArray {
     return std::move(copy).ForceNoBitmapBitOffset(factory);
   }
 
+  DenseArray<Unit> ToMask() const {
+    return {VoidBuffer(size()), bitmap, bitmap_bit_offset};
+  }
+
   // Iterates through all elements (including missing) in order. Callback `fn`
   // should have 3 arguments: int64_t id, bool presence, view_type_t<T> value.
   template <typename Fn>
@@ -250,10 +254,10 @@ class DenseArrayBuilder {
  public:
   using base_type = T;
 
-  explicit DenseArrayBuilder(int64_t size,
+  explicit DenseArrayBuilder(int64_t max_size,
                              RawBufferFactory* factory = GetHeapBufferFactory())
-      : values_bldr_(size, factory),
-        bitmap_bldr_(bitmap::BitmapSize(size), factory) {
+      : values_bldr_(max_size, factory),
+        bitmap_bldr_(bitmap::BitmapSize(max_size), factory) {
     bitmap_ = bitmap_bldr_.GetMutableSpan().begin();
     std::memset(bitmap_, 0,
                 bitmap_bldr_.GetMutableSpan().size() * sizeof(bitmap::Word));
