@@ -25,7 +25,7 @@ python.toolchain(
     python_version = "3.11",
 )
 
-pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip", dev_dependency = True)
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     hub_name = "arolla_pip_deps",
     python_version = "3.11",
