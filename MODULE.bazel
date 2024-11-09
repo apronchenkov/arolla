@@ -20,7 +20,7 @@ bazel_dep(name = "riegeli", version = "0.0.0-20240927-cdfb25a", repo_name = "com
 bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_python", version = "0.37.1")
 
-python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python = use_extension("@rules_python//python/extensions:python.bzl", "python", dev_dependency = True)
 python.toolchain(
     ignore_root_user_error = True,  # Required for our containerized CI environments.
     python_version = "3.11",
